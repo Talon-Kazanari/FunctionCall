@@ -63,32 +63,28 @@ Module Type FOO.
       f m1 m2 k n1 -> n1>=n2 -> f m1 m2 k n2.
 
   (* by constructing process *)
-  Axiom Func_Prop: forall (f:Func) m1 m2 k n, k<=n ->
+  Axiom Func_Prop: forall (f:Func) m1 m2 k n, k<n ->
       f m1 m2 k n -> exists m1' m2', (feM n m1 m1' /\ feM (n-k) m2 m2' /\ (forall n', f m1' m2' k n')).
 
-  Axiom Func_Property: forall (f:Func) m1 m2 k n, k<=n ->
+  Axiom Func_Property: forall (f:Func) m1 m2 k n, k<n ->
       f m1 m2 k n ->
       (forall m1', feM n m1 m1' ->
         (exists m2', feM (n-k) m2 m2' /\ forall n', f m1' m2' k n') 
       ).
-  (*Axiom Func_Property': forall (f:Func) m1 m2 m1' m2' k n, k<=n ->
-      f m1 m2 k n -> f m1' m2' k n ->
-      feM n m1 m1' -> feM (n-k) m2 m2'.*)
 
   Definition Func_EQ (n:nat) (f1 f2: Func): Prop :=
-      forall m1 m2 k, k<=n -> (f1 m1 m2 k n <-> f2 m1 m2 k n).
+      forall m1 m2 k, k<n -> (f1 m1 m2 k n <-> f2 m1 m2 k n).
   Axiom Func_EQ_downwards_closed: forall (n1 n2: nat) (f1 f2: Func),
       Func_EQ n1 f1 f2 -> n1>=n2 -> Func_EQ n2 f1 f2.
 
   Definition is_func (f:Func): Prop := (forall m1 m2 m1' m2' k n n',
       (feM n m1 m1' -> feM (n-k) m2 m2' -> f m1 m2 k n <-> f m1' m2' k n) (*Func_NDI*) /\
       (f m1 m2 k n -> n>=n' -> f m1 m2 k n') (*Func_Downwards_closed*) /\
-      (k<=n -> f m1 m2 k n -> exists m11 m22, (feM n m1 m11 /\ feM (n-k) m2 m22 /\ (forall nn, f m11 m22 k nn))) (*Func_Prop*) /\
-      (k<=n -> f m1 m2 k n -> (forall m11, feM n m1 m11 -> (exists m22, feM (n-k) m2 m22 /\ forall nn, f m11 m22 k nn))) (*Func_Property*)(* /\
-      (k<=n -> f m1 m2 k n -> f m1' m2' k n -> feM n m1 m1' -> feM (n-k) m2 m2') (*Func_Property'*)*)
+      (k<n -> f m1 m2 k n -> exists m11 m22, (feM n m1 m11 /\ feM (n-k) m2 m22 /\ (forall nn, f m11 m22 k nn))) (*Func_Prop*) /\
+      (k<n -> f m1 m2 k n -> (forall m11, feM n m1 m11 -> (exists m22, feM (n-k) m2 m22 /\ forall nn, f m11 m22 k nn))) (*Func_Property*)
   ).
 
-  Definition FM: Type := nat -> option (nat + Func(* RealFunc*)).
+  Definition FM: Type := nat -> option (nat + Func).
 
   Parameter i1: M -> FM.
   Parameter i2: FM -> M.
@@ -102,7 +98,7 @@ Module Type FOO.
   Definition join_m (m1 m2 m3: M): Prop :=
     join_fm (i1 m1) (i1 m2) (i1 m3).
   
-  Definition direct_conflict (v1 v2: option (nat+(*Real*)Func)) : Prop :=
+  Definition direct_conflict (v1 v2: option (nat + Func)) : Prop :=
     match v1, v2 with
     | None, None => False
     | None, Some _ => True
@@ -125,30 +121,6 @@ Module Type FOO.
     apply feM_mono with (S n);[omega|exact H].
   Qed.
 
-(*  Program Definition miniSet (m:M)(n:nat):assertion:=
-    fun m' n' => feM n m m' \/ n' <= n.
-  Next Obligation.
-    unfold inner_NE. split; intros.
-    - destruct H.
-      + left. exact H.
-      + right. omega.
-    - destruct H0.
-      + destruct (n0<=?n) eqn:h.
-        * apply leb_complete in h.
-          right. exact h.
-        * apply leb_complete_conv in h.
-          left.
-          apply feM_trans with m1; [exact H0|].
-          apply feM_mono with n0; [|exact H].
-          omega.
-      + right. exact H0.
-  Qed.
-
-  Definition Func_Construct (f:RealFunc):Func:=
-    fun m1 m2 k n =>
-      f (miniSet m2 n) m1 (n+k).
-
-*)
   Axiom feM_0_always: forall m1 m2, feM 0 m1 m2.
   Axiom feM_imply_EQ: forall m1 m2 n,
       feM (S n) m1 m2 <-> forall x, (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n ((*Func_Construct *)f1) ((*Func_Construct *)f2)).
@@ -156,7 +128,7 @@ Module Type FOO.
       feM (S n) m1 m2 -> i1 m1 x = None -> i1 m2 x = None.
   Proof.
     intros.
-    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n ((*Func_Construct *)f1) ((*Func_Construct *)f2))).
+    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n f1 f2)).
     { apply (feM_imply_EQ m1 m2 n). exact H. }
     destruct H1;[|destruct H1].
     - tauto.
@@ -167,7 +139,7 @@ Module Type FOO.
       feM (S n) m1 m2 -> i1 m1 x = Some (inl v) -> i1 m2 x = Some (inl v).
   Proof.
     intros.
-    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n ((*Func_Construct *)f1) ((*Func_Construct *)f2))).
+    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n f1 f2)).
     { apply (feM_imply_EQ m1 m2 n). exact H. }
     destruct H1;[|destruct H1].
     - destruct H1. rewrite H0 in H1. inversion H1.
@@ -178,7 +150,7 @@ Module Type FOO.
       feM (S n) m1 m2 -> i1 m1 x = Some (inr f) -> exists f', Func_EQ n f f' /\ i1 m2 x = Some (inr f').
   Proof.
     intros.
-    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n ((*Func_Construct *)f1) ((*Func_Construct *)f2))).
+    assert ( (i1 m1 x = None /\ i1 m2 x = None) \/ (exists l, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/ (exists f1 f2, i1 m1 x = Some (inr f1) /\ i1 m2 x = Some (inr f2) /\ Func_EQ n f1 f2)).
     { apply (feM_imply_EQ m1 m2 n). exact H. }
     destruct H1;[|destruct H1].
     - destruct H1. rewrite H0 in H1. inversion H1.
@@ -197,7 +169,7 @@ Module Type FOO.
         (exists l : nat, i1 m1 x = Some (inl l) /\ i1 m2 x = Some (inl l)) \/
         (exists f1 f2 : (*Real*)Func,
            i1 m1 x = Some (inr f1) /\
-           i1 m2 x = Some (inr f2) /\ Func_EQ 0 ((*Func_Construct *)f1) ((*Func_Construct *)f2))).
+           i1 m2 x = Some (inr f2) /\ Func_EQ 0 f1 f2)).
     { apply H1. exact H0. }
     clear H0 H1.
     destruct H as [x ?].
@@ -456,7 +428,7 @@ Module Type FOO.
 
   (* P Q stands for step-indexed props, while P' Q' for non-step-indexed props. *)
   Program Definition mapsto_index_assertion_n (x:nat) (P Q: assertion): assertion :=
-    fun m n => (forall n0,n0<n->(exists f, i1 m x = Some (inr f) /\ (forall m1 m2 k, k<=n0 -> P m1 n0 -> (*Func_Construct*) f m1 m2 k n0 -> Q m2 (n0-k)))).
+    fun m n => (forall n0,n0<n->(exists f, i1 m x = Some (inr f) /\ (forall m1 m2 k, k<n0 -> P m1 n0 -> f m1 m2 k n0 -> Q m2 (n0-k)))).
   Next Obligation.
     unfold inner_NE; split; intros.
     - assert (n0<n1) by omega. pose proof H n0 H2.
@@ -471,7 +443,7 @@ Module Type FOO.
       exists f'.
       split;[exact H5|].
       intros.
-      assert ((*Func_Construct *)f m0 m3 k n0).
+      assert (f m0 m3 k n0).
       { pose proof Func_EQ_downwards_closed n n0 f f' H4.
         assert (n>=n0) by omega. apply H9 in H10.
         apply (H10 m0 m3 k); [exact H6|exact H8]. }
@@ -480,7 +452,7 @@ Module Type FOO.
       apply H10 in H11.
       destruct H11 as [m3' [? ?]].
       pose proof H3 m0 m3' k H6 H7.
-      assert ((*Func_Construct *)f m0 m3' k n0) by apply H12.
+      assert (f m0 m3' k n0) by apply H12.
       apply H13 in H14.
       apply (assertion_n_equiv Q m3' m3 (n0-k));[|exact H14].
       apply feM_EQ. exact H11.
@@ -488,7 +460,6 @@ Module Type FOO.
   
   
   Definition var_lang: Type := nat.
-  Definition var_lang_p: Type := nat.
   Inductive term: Type :=
     | Var (v: var_lang)
     | Const (l: nat).
@@ -496,89 +467,107 @@ Module Type FOO.
   Inductive lang: Type :=
     | MapstoV (l v: term)
     | MapstoF (l: term) (P Q: lang)
-    | MapstoF_forall (l: term) (v: var_lang_p) (P Q: lang)
+    | MapstoF_forall (l: term) (v: var_lang) (P Q: lang)
     | Or (P Q: lang)
     | And (P: Prop) (Q: lang)
     | Sepcon (P Q: lang)
-    | Exists (v: var_lang) (P: lang)
-   (* | Exists_P (v: var_lang_p) (P: lang)*)
-    | VarP (v: var_lang_p).
-
-  Parameter index_interp: Type.
-  Definition actual_interp: Type := M -> nat -> index_interp -> Prop.
-  Parameter interp_i1: index_interp -> actual_interp.
-  Parameter interp_i2: actual_interp -> index_interp.
-  Axiom interp_i1_i2: forall i, i1 (i2 i) = i.
-  Axiom interp_i2_i1: forall i, i2 (i1 i) = i.
-  Definition interp_downwards_closed (i: actual_interp): Prop:= forall m n1 n2 i',
-      n1<=n2 -> i m n2 i' -> i m n1 i'.
-  Axiom all_interp_downwards_closed: forall i, interp_downwards_closed i.
-  Definition interp_n_equal (i: actual_interp): Prop:= forall m1 m2 n i',
-      feM n m1 m2 -> i m1 n i' -> i m2 n i'.
-  Axiom all_interp_n_equal: forall i, interp_n_equal i.
+    | Exists (v: var_lang) (P: lang).
   
-  Record interp: Type:= {
-                           Var_Part: var_lang -> nat;
-                           Prop_Part: var_lang_p -> actual_interp
-                        }.
+  Definition interp: Type:= var_lang -> nat.
   
   Definition denote_term (i: interp) (t: term): nat :=
     match t with
-    | Var v => Var_Part i v
+    | Var v => i v
     | Const l => l
     end.
 
-  Definition interp_update_v (i: interp) (v: var_lang) (t: term): interp :=
-    Build_interp (fun x: var_lang => if beq_nat x v then (denote_term i t) else Var_Part i x) (Prop_Part i).
-  Lemma interp_update_v_keep_p: forall (i: interp) (vv: var_lang) (t: term) (vp: var_lang_p),
-      Prop_Part i vp = Prop_Part (interp_update_v i vv t) vp.
-  Proof. intros. simpl. reflexivity. Qed.
-  Definition interp_update_p (i: interp) (v: var_lang_p) (p: actual_interp): interp :=
-    Build_interp (Var_Part i) (fun x: var_lang_p => if beq_nat x v then p else Prop_Part i x).
-  Lemma interp_update_p_keep_v: forall (i: interp) (vp: var_lang_p) (p: actual_interp) (vv: var_lang),
-      Var_Part i vv = Var_Part (interp_update_p i vp p) vv.
-  Proof. intros. simpl. reflexivity. Qed.
+  Definition interp_update (i: interp) (v: var_lang) (t: term): interp :=
+    fun x: var_lang => if beq_nat x v then (denote_term i t) else i x.
 
   Fixpoint nonidx_denote (i: interp) (P: lang): M -> Prop :=
     match P with
-    | MapstoV l v => fun m => i1 m (denote_term i l) = Some (inl (denote_term i v)) /\ forall l', l'<>denote_term i l -> i1 m l' = None
-    | MapstoF l P Q => fun m => (forall l', l'<>denote_term i l -> i1 m l' = None) /\ exists f, i1 m (denote_term i l) = Some (inr f) /\ (forall m1 m2 k, nonidx_denote i P m1 -> (forall n, (*Func_Construct*) f m1 m2 k n) -> nonidx_denote i Q m2)
+    | MapstoV l v => fun m => i1 m (denote_term i l) = Some (inl (denote_term i v)) /\
+                              forall l', l'<>denote_term i l -> i1 m l' = None
+    | MapstoF l P Q => fun m =>
+                         (forall l', l'<>denote_term i l -> i1 m l' = None) /\
+                         exists f, i1 m (denote_term i l) = Some (inr f) /\
+                                   (forall m1 m2 k, nonidx_denote i P m1 ->
+                                                    (forall n, f m1 m2 k n) ->
+                                                    nonidx_denote i Q m2)
     | Or P Q => fun m => nonidx_denote i P m \/ nonidx_denote i Q m
     | And P Q => fun m => P /\ nonidx_denote i Q m
-    | Sepcon P Q => fun m => exists m1 m2, join_m m1 m2 m /\ nonidx_denote i P m1 /\ nonidx_denote i Q m2
-    | Exists v P => fun m => exists t, nonidx_denote (interp_update_v i v t) P m
-    | MapstoF_forall l v P Q => fun m => forall r, (forall l', l'<>denote_term (interp_update_p i v r) l -> i1 m l' = None) /\ exists f, i1 m (denote_term (interp_update_p i v r) l) = Some (inr f) /\ (forall m1 m2 k, nonidx_denote (interp_update_p i v r) P m1 -> (forall n, (*Func_Construct*) f m1 m2 k n) -> nonidx_denote (interp_update_p i v r) Q m2)
-    | VarP v => fun m => forall n, Prop_Part i v m n (interp_i2 (Prop_Part i v))
+    | Sepcon P Q => fun m => exists m1 m2, join_m m1 m2 m /\
+                                           nonidx_denote i P m1 /\
+                                           nonidx_denote i Q m2
+    | Exists v P => fun m => exists t, nonidx_denote (interp_update i v t) P m
+    | MapstoF_forall l v P Q => fun m =>
+                                  forall t,
+                                    (forall l', l'<>denote_term i l ->
+                                                i1 m l' = None) /\
+                                    exists f,
+                                      i1 m (denote_term i l) = Some (inr f) /\
+                                      (forall m1 m2 k, nonidx_denote (interp_update i v t) P m1 ->
+                                                       (forall n, f m1 m2 k n) ->
+                                                       nonidx_denote (interp_update i v t) Q m2)
     end.
 
   Fixpoint index_denote_aux (i: interp) (P: lang): M -> nat -> Prop :=
     match P with
-    | MapstoV l v => fun m n => match n with | 0 => True | S _ => i1 m (denote_term i l) = Some (inl (denote_term i v)) /\ forall l', l'<>denote_term i l -> i1 m l' = None end
-    | MapstoF l P Q => fun m n => match n with | 0 => True | S n' => (forall l', l'<>denote_term i l -> i1 m l' = None) /\ forall n0, n0<=n' -> (exists f, i1 m (denote_term i l) = Some (inr f) /\ (forall m1 m2 k, k<=n0 -> index_denote_aux i P m1 n0 -> (*Func_Construct*) f m1 m2 k n0 -> index_denote_aux i Q m2 (n0-k))) end
+    | MapstoV l v => fun m n => match n with | 0 => True | S _ =>
+                       i1 m (denote_term i l) = Some (inl (denote_term i v)) /\
+                       forall l', l'<>denote_term i l -> i1 m l' = None end
+    | MapstoF l P Q => fun m n => match n with | 0 => True | S n' =>
+                         (forall l', l'<>denote_term i l -> i1 m l' = None) /\
+                         forall n0, n0<=n' ->
+                           (exists f, i1 m (denote_term i l) = Some (inr f) /\
+                                      (forall m1 m2 k, k<n0 -> index_denote_aux i P m1 n0 ->
+                                                       f m1 m2 k n0 ->
+                                                       index_denote_aux i Q m2 (n0-k))) end
     | Or P Q => fun m n => index_denote_aux i P m n \/ index_denote_aux i Q m n
     | And P Q => fun m n => P /\ index_denote_aux i Q m n
-    | Sepcon P Q => fun m n => exists m1 m2, join_m m1 m2 m /\ index_denote_aux i P m1 n /\ index_denote_aux i Q m2 n
-    | Exists v P => fun m n => exists t, index_denote_aux (interp_update_v i v t) P m n
-    | MapstoF_forall l v P Q => fun m n => match n with | 0 => True | S n' => forall r, (forall l', l'<>denote_term (interp_update_p i v r) l -> i1 m l' = None) /\ forall n0, n0<=n' -> (exists f, i1 m (denote_term (interp_update_p i v r) l) = Some (inr f) /\ (forall m1 m2 k, k<=n0 -> index_denote_aux (interp_update_p i v r) P m1 n0 -> (*Func_Construct*) f m1 m2 k n0 -> index_denote_aux (interp_update_p i v r) Q m2 (n0-k))) end
-    | VarP v => fun m n => Prop_Part i v m n (interp_i2 (Prop_Part i v))
+    | Sepcon P Q => fun m n => exists m1 m2, join_m m1 m2 m /\
+                                             index_denote_aux i P m1 n /\
+                                             index_denote_aux i Q m2 n
+    | Exists v P => fun m n => exists t, index_denote_aux (interp_update i v t) P m n
+    | MapstoF_forall l v P Q => fun m n => match n with | 0 => True | S n' => forall t,
+                                  (forall l', l'<>denote_term i l ->
+                                              i1 m l' = None) /\
+                                  forall n0, n0<=n' ->
+                                    (exists f,
+                                      i1 m (denote_term i l) = Some (inr f) /\
+                                      (forall m1 m2 k, k<n0 ->
+                                         index_denote_aux (interp_update i v t) P m1 n0 ->
+                                         f m1 m2 k n0 ->
+                                         index_denote_aux (interp_update i v t) Q m2 (n0-k))) end
     end.
 
-  Definition real_fact (P: lang): Prop :=
-    forall m1 m2 i, feM 1 m1 m2 -> nonidx_denote i P m1 -> nonidx_denote i P m2.
-  
   Fixpoint legal (P: lang): Prop :=
     match P with
     | MapstoV l v => True
     | MapstoF l P Q => legal P /\ legal Q
     | Or P Q => legal P /\ legal Q
     | And P Q => legal Q
-    | Sepcon P Q => legal P /\ legal Q /\ exists N, forall n, n>=N -> forall m1 m2 m1' m2' m i, join_m m1 m2 m -> join_m m1' m2' m -> index_denote_aux i P m1 N -> index_denote_aux i P m1' n -> index_denote_aux i Q m2 N -> index_denote_aux i Q m2' n -> m1 = m1' /\ m2 = m2'
-    | Exists v P => legal P /\ exists N, forall n, n>=N -> forall m i t1 t2, index_denote_aux (interp_update_v i v t1) P m N -> index_denote_aux (interp_update_v i v t2) P m n -> t1 = t2
-    | MapstoF_forall l v P Q => legal P /\ legal Q
-    | VarP v => True
+    | Sepcon P Q => legal P /\ legal Q /\ exists N, forall n, n>=N -> forall m1 m2 m1' m2' m i,
+                            join_m m1 m2 m ->
+                            join_m m1' m2' m ->
+                            index_denote_aux i P m1 N ->
+                            index_denote_aux i P m1' n ->
+                            index_denote_aux i Q m2 N ->
+                            index_denote_aux i Q m2' n ->
+                            m1 = m1' /\ m2 = m2'
+    | Exists v P => legal P /\ exists N, forall n, n>=N -> forall m i t1 t2,
+              index_denote_aux (interp_update i v t1) P m N ->
+              index_denote_aux (interp_update i v t2) P m n ->
+              t1 = t2
+    | MapstoF_forall l v P Q => legal P /\ legal Q /\
+                                forall n1 n2, n1>0 -> n2>0 -> forall m i t1 t2,
+                                      (index_denote_aux (interp_update i v t1) P m n1 ->
+                                       index_denote_aux (interp_update i v t2) P m n2 ->
+                                       t1 = t2) /\
+                                      (index_denote_aux (interp_update i v t1) Q m n1 ->
+                                       index_denote_aux (interp_update i v t2) Q m n2 ->
+                                       t1 = t2)                      
     end.
-
-  Axiom interp_prop: forall (i: interp) (v: var_lang_p) m n r, Prop_Part i v m n r -> exists m', feM n m m' /\ forall n', Prop_Part i v m' n' r.
 
   Theorem index_denote_inner_NE: forall i P,
       inner_NE (index_denote_aux i P).
@@ -598,7 +587,14 @@ Module Type FOO.
         assert (n0<=n1) by omega. apply H in H2.
         exact H2.
     - intros. destruct n;[auto|].
-      split;[destruct H0 as [? _];intros;specialize H0 with l';apply H0 in H1;apply (feM_imply_EQ_None m1 m2 n l' H H1)|destruct H0 as [_ ?]].
+      split;[
+        destruct H0 as [? _];
+        intros;
+        specialize H0 with l';
+        apply H0 in H1;
+        apply (feM_imply_EQ_None m1 m2 n l' H H1)|
+        destruct H0 as [_ ?]
+      ].
       intros.
       pose proof H0 n0 H1; clear H0.
       destruct H2 as [f [? ?]].
@@ -610,12 +606,13 @@ Module Type FOO.
       specialize (H2 m0 m3 k H5 H6).
       assert (f m0 m3 k n0).
       { assert (Func_EQ n0 f f'). apply Func_EQ_downwards_closed with n;[exact H3|omega].
-        pose proof H8 m0 m3 k H5. apply H9. exact H7. }
+        assert (k<n0) by omega.
+        pose proof H8 m0 m3 k H9. apply H10. exact H7. }
       apply H2. exact H8.
     - destruct n1.
       + inversion H0. auto.
       + destruct n2;[auto|].
-        intros. specialize H with r.
+        intros. specialize H with t.
         destruct H.
         split;[exact H|].
         intros.
@@ -625,7 +622,7 @@ Module Type FOO.
         destruct H3 as [f [? ?]].
         exists f.
         split;[exact H3|exact H4].
-    - destruct n;[auto|]. intros. specialize H0 with r.
+    - destruct n;[auto|]. intros. specialize H0 with t.
       split.
       + destruct H0 as [? _].
         intros.
@@ -636,7 +633,7 @@ Module Type FOO.
         intros.
         pose proof H0 n0 H1.
         destruct H2 as [f [? ?]].
-        pose proof feM_imply_EQ_Func m1 m2 n (denote_term (interp_update_p i v r) l) f H H2.
+        pose proof feM_imply_EQ_Func m1 m2 n (denote_term i l) f H H2.
         destruct H4 as [f' [? ?]].
         exists f'.
         split;[exact H5|].
@@ -645,7 +642,7 @@ Module Type FOO.
         apply H3.
         assert (Func_EQ n0 f f').
         { apply Func_EQ_downwards_closed with n;[exact H4|omega]. }
-        apply H9;assumption.
+        apply H9; try assumption.
     - destruct (IHP1 i), (IHP2 i). destruct H;[left;apply H1 with n1;assumption|right;apply H3 with n1;assumption].
     - destruct (IHP1 i), (IHP2 i). destruct H0;[left;apply H2 with m1;assumption|right;apply H4 with m1;assumption].
     - destruct (IHP i) as [? _]. destruct H;split;[exact H|apply (H1 m n1 n2 H2 H0)].
@@ -653,11 +650,8 @@ Module Type FOO.
     - destruct H as [m1 [m2 [? [? ?]]]]. exists m1, m2. split;[exact H|]. split; destruct (IHP1 i), (IHP2 i); [apply H3 with n1|apply H5 with n1]; assumption.
     - destruct H0 as [m3 [m4 [? [? ?]]]]. pose proof join_feM m1 m2 n m3 m4 H H0. destruct H3 as [m1' [m2' [? [? ?]]]].
       exists m1', m2'. split;[exact H5|]. split; destruct (IHP1 i), (IHP2 i); [apply H7 with m3|apply H9 with m4]; assumption.
-    - destruct H as [l ?]. exists l. pose proof IHP (interp_update_v i v l). destruct H1. apply H1 with n1;[exact H|exact H0].
-    - destruct H0 as [l ?]. exists l. pose proof IHP (interp_update_v i v l). destruct H1. apply H2 with m1; assumption.
-    - pose proof all_interp_downwards_closed (Prop_Part i v) m n2 n1 (interp_i2 (Prop_Part i v)).
-      apply H1;[omega|exact H].
-    - apply (all_interp_n_equal (Prop_Part i v) m1 m2 n (interp_i2 (Prop_Part i v)));[exact H|exact H0].
+    - destruct H as [l ?]. exists l. pose proof IHP (interp_update i v l). destruct H1. apply H1 with n1;[exact H|exact H0].
+    - destruct H0 as [l ?]. exists l. pose proof IHP (interp_update i v l). destruct H1. apply H2 with m1; assumption.
   Qed.
     
 
@@ -668,34 +662,34 @@ Module Type FOO.
     derive_n2d: forall m i, nonidx_denote i P m -> forall n, diam n (nonidx_denote i P) m.
 
   Class DeriveN2I (P: lang): Prop :=
-    derive_n2i: forall m i, nonidx_denote i P m -> forall n, index_denote_aux i P m n.
+    derive_n2i: forall m i, nonidx_denote i P m -> forall n, n>0 -> index_denote_aux i P m n.
   
   Class DeriveI2D (P: lang): Prop :=
-    derive_i2d: forall m i n, index_denote_aux i P m n -> diam n (nonidx_denote i P) m.
+    derive_i2d: forall m i n, n>0 -> index_denote_aux i P m n -> diam n (nonidx_denote i P) m.
 
   Class DeriveI2N (P: lang): Prop :=
-    derive_i2n: forall m i, (forall n, index_denote_aux i P m n) -> nonidx_denote i P m.
+    derive_i2n: forall m i, (forall n, n>0 -> index_denote_aux i P m n) -> nonidx_denote i P m.
   
   Class DeriveD2N (P: lang): Prop :=
-    derive_d2n: forall m i, (forall n, diam n (nonidx_denote i P) m) -> nonidx_denote i P m.
+    derive_d2n: forall m i, (forall n, n>0 -> diam n (nonidx_denote i P) m) -> nonidx_denote i P m.
 
   Class DeriveD2I (P: lang): Prop :=
-    derive_d2i: forall m i n, diam n (nonidx_denote i P) m -> index_denote_aux i P m n.
+    derive_d2i: forall m i n, n>0 -> diam n (nonidx_denote i P) m -> index_denote_aux i P m n.
 
   Lemma DeriveN2D_always: forall P, DeriveN2D P.
   Proof. intros P m i H n. exists m. split;[apply feM_EQ|exact H]. Qed.
 
   Lemma DeriveD2N_only_way: forall P, DeriveD2I P -> DeriveI2N P -> DeriveD2N P.
-  Proof. intros P H1 H2 m i H. apply H2. intro. apply H1. apply H. Qed.
+  Proof. intros P H1 H2 m i H. apply H2. intros. apply H1;[exact H0|]. apply H. exact H0. Qed.
   (* This is the only reasonable way to prove DeriveD2N. *)
 
   Lemma DeriveD2I_by_N2I: forall P, DeriveN2I P -> DeriveD2I P.
   Proof.
-    intros P H m i n H0.
+    intros P H m i n hn H0.
     destruct H0 as [m' [? ?]].
     apply index_denote_inner_NE with m'.
     - apply feM_EQ. exact H0.
-    - apply H. exact H1.
+    - apply H; [exact H1|exact hn].
   Qed.
 
   Lemma Derive_3_to_5: forall P, DeriveN2I P -> DeriveI2N P -> DeriveI2D P ->
@@ -713,34 +707,35 @@ Module Type FOO.
     simpl in *.
     destruct (i1 m (denote_term i p)) eqn:h.
     + destruct s.
-      - specialize (H 1). simpl in H. split;[destruct H as [? _];exact H|destruct H as [_ ?]].
+      - specialize (H 1). simpl in H. assert (1>0) by omega. apply H in H0.
+        clear H. remember H0 as H. clear HeqH H0. 
+        split;[destruct H as [? _];exact H|destruct H as [_ ?]].
         specialize H with 0. assert (0<=0) by omega. apply H in H0. destruct H0 as [f [? ?]].
         inversion H0.
-      - split;[specialize H with 1;destruct H as [? _];exact H|].
-        exists f.
-        split;[reflexivity|].
-        intros.
-        apply HQ.
-        intros.
-        specialize (H (S (n+k))).
-        simpl in H. destruct H as [_ ?].
-        specialize H with (n+k).
-        assert (n+k<=(n+k)) by omega.
-        apply H in H2.
-        destruct H2 as [? [? ?]].
-        inversion H2; subst.
-        pose proof (H3 m1 m2 k).
-        assert (k<=n+k) by omega.
-        apply H4 in H5.
-        * replace (n+k-k) with n in H5 by omega. exact H5.
-        * apply HP. exact H0.
-        * apply H1.
-    + specialize (H 1).
+      - split.
+        * assert (1>0) by omega. apply H in H0. destruct H0 as [? _]. exact H0.
+        * exists f.
+          split;[reflexivity|].
+          intros.
+          apply HQ.
+          intros.
+          assert (S (n+k)>0) by omega.
+          apply H in H3.
+          destruct H3 as [_ ?].
+          specialize H3 with (n+k).
+          assert (n+k<=(n+k)) by omega.
+          apply H3 in H4.
+          destruct H4 as [? [? ?]].
+          inversion H4; subst.
+          assert (k<n+k) by omega.
+          replace n with (n+k-k) by omega.
+          apply (H5 m1 m2 k H6);[apply HP;[exact H0|omega]|apply H1].
+    + assert (1>0) by omega. apply H in H0.
       assert (0<=0) by omega.
-      split;[destruct H as [? _];exact H|destruct H as [_ ?]].
-      apply H in H0.
-      destruct H0 as [f [? ?]].
-      inversion H0.
+      split;[destruct H0 as [? _];exact H0|destruct H0 as [_ ?]].
+      apply H0 in H1.
+      destruct H1 as [f [? ?]].
+      inversion H1.
   Qed.
 
   Lemma DeriveN2I_MapstoF: forall p P Q,
@@ -757,134 +752,25 @@ Module Type FOO.
     exists f.
     split;[rewrite H;reflexivity|].
     intros.
-    apply HP' in H3.
-    destruct H3 as [m1' [? ?]].
-    pose proof Func_Property ((*Func_Construct *)f) m1 m2 k n0 H2 H4 m1' H3.
-    destruct H6 as [m2' [? ?]].
-    pose proof H0 m1' m2' k H5 H7.
-    pose proof index_denote_inner_NE i Q.
-    destruct H9 as [_ ?].
-    apply (H9 m2' m2 (n0-k));[apply feM_EQ; exact H6|].
-    apply HQ. exact H8.
+    destruct n0; [inversion H3|].
+    apply HP' in H4;[|omega].
+    destruct H4 as [m1' [? ?]].
+    pose proof Func_Property f m1 m2 k (S n0) H3 H5 m1' H4.
+    destruct H7 as [m2' [? ?]].
+    pose proof H0 m1' m2' k H6 H8.
+    destruct (index_denote_inner_NE i Q) as [_ ?].
+    apply (H10 m2' m2 (S n0-k));[apply feM_EQ; exact H7|].
+    apply HQ; [exact H9|omega].
   Qed.
   
-  Definition m_update (m : FM) (x : nat) (v : option (nat + (*Real*)Func)) :=
+  Definition m_update (m : FM) (x : nat) (v : option (nat + Func)) :=
     fun x' => if beq_nat x x' then v else m x'.
-  (*Lemma DeriveI2D_MapstoF: forall p P Q,
-      DeriveN2I P -> DeriveI2N Q -> DeriveI2D (MapstoF p P Q).
-  Proof.
-    intros p P Q HP HQ m i n H.
-    simpl in *.
-    destruct n.
-    - exists (i2 (fun x => if beq_nat x (denote_term i p) then (Some (inr (fun _ _ _ _ => False))) else None)).
-      split;[apply feM_0_always|].
-      rewrite i1_i2.
-      split.
-      + intros. apply Nat.eqb_neq in H0. rewrite H0. reflexivity.
-      + exists (fun _ _ _ _ => False).
-        split.
-        * rewrite <- beq_nat_refl. reflexivity.
-        * intros. apply H1 in k. inversion k.
-    - destruct (i1 m (denote_term i p)) eqn:h.
-      * destruct s.
-        + destruct H as [_ ?]. specialize (H 0).
-          assert (0 <= n) by omega. apply H in H0. destruct H0 as [f [? ?]]. inversion H0.
-        + remember (fun m1 m2 k n' => (n'<=n -> f m1 m2 k n') /\ (n'>n ->
-                                     index_denote_aux i P m1 n' /\ index_denote_aux i Q m2 (n'-k)
-                   )) as f'.
-          exists (i2 (m_update (i1 m) (denote_term i p) (Some (inr f')))).
-          split.
-          -- apply feM_imply_EQ. intros. destruct (beq_nat (denote_term i p) x) eqn:hx.
-             ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
-                right. right. exists f, f'.
-                apply beq_nat_true in hx.
-                split;[rewrite<-hx;rewrite h;reflexivity|split;[reflexivity|]].
-                intros m1 m2 k Hkn. split; intros.
-                ** rewrite Heqf'. split;intros;[exact H0|].
-                   assert (n>n->False) by omega. apply H2 in H1. inversion H1.
-                ** rewrite Heqf' in H0. destruct H0 as [? _]. apply H0. omega.
-             ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
-                destruct (i1 m x) eqn: hx';[|left;split;reflexivity].
-                right. destruct s;[left;exists n0;split;reflexivity|].
-                right. exists f0, f0.
-                split;[reflexivity|split;[reflexivity|split;intro;assumption]].
-          -- rewrite i1_i2. unfold m_update. rewrite <- beq_nat_refl.
-             split;[destruct H as [? _]|destruct H as [_ ?]].
-             ++ intros. pose proof H0. apply Nat.eqb_neq in H0.
-                replace (denote_term i p =? l') with (l' =? denote_term i p) by apply Nat.eqb_sym.
-                rewrite H0. apply H. exact H1.
-             ++ exists f'. split;[reflexivity|]. intros.
-                rewrite Heqf' in H1. apply HQ. intros.
-                specialize H1 with (n0+k).
-                destruct H1 as [? ?].
-                destruct (n0+k<=?n) eqn:hn.
-                ** apply Nat.leb_le in hn. pose proof hn. apply H1 in hn.
-                   pose proof H (n0+k) H3.
-                   destruct H4 as [fx [? ?]].
-                   inversion H4. subst.
-                   pose proof H5 m1 m2 k.
-                   assert (k<=n0+k) by omega.
-                   replace n0 with (n0+k-k) by omega.
-                   apply (H6 H7);[|exact hn].
-                   apply HP. exact H0.
-                ** apply Nat.leb_gt in hn.
-                   assert (n0+k>n) by omega. apply H2 in H3. destruct H3.
-                   replace n0 with (n0+k-k) by omega. exact H4.
-       (*           
 
-            (fun m1 m2 k n => f m1 m2 k n /\
-                     (k<=n->index_denote_aux i P m1 n -> index_denote_aux i Q m2 (n-k))) as f'.
-          exists (i2 (m_update (i1 m) (denote_term i p) (Some (inr f')))).
-          split.
-          -- apply feM_imply_EQ.
-             intros.
-             destruct (beq_nat (denote_term i p) x) eqn:hx.
-             ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
-                right. right. exists f, f'.
-                apply beq_nat_true in hx.
-                split;[rewrite<-hx;rewrite h;reflexivity|split;[reflexivity|]].
-                intros m1 m2 k Hkn. split; intros.
-                ** rewrite Heqf'.
-                   split;[exact H0|].
-                   intros.
-                   destruct H as [_ ?].
-                   specialize H with n.
-                   assert (n <= n) by omega.
-                   apply H in H3.
-                   destruct H3 as [f0 [? ?]].
-                   inversion H3; subst.
-                   apply (H4 m1 m2 k H1 H2 H0).
-                ** rewrite Heqf' in H0.
-                   destruct H0. exact H0.
-             ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
-                destruct (i1 m x) eqn:hx';[|left;split;reflexivity].
-                right. destruct s;[left;exists n0;split;reflexivity|].
-                right. exists f0, f0.
-                split;[reflexivity|split;[reflexivity|]].
-                split; intro; assumption.
-          -- rewrite i1_i2. unfold m_update. rewrite <- beq_nat_refl.
-             split;[destruct H as [? _]|destruct H as [_ ?]].
-             ++ intros. pose proof H0. apply Nat.eqb_neq in H0. replace (denote_term i p =? l') with (l' =? denote_term i p) by apply Nat.eqb_sym. rewrite H0. apply H. exact H1.
-             ++ exists f'. split;[reflexivity|]. intros.
-                rewrite Heqf' in H1.
-                apply HQ.
-                intros.
-                specialize H1 with (n0+k).
-                destruct H1 as [_ ?].
-                assert (k<=n0+k) by omega.
-                apply H1 in H2;[replace (n0+k-k) with n0 in H2 by omega;exact H2|apply HP;exact H0].
-*)
-      * destruct H as [_ ?]. specialize H with n. assert (n <= n) by omega. apply H in H0. destruct H0 as [? [? ?]]. inversion H0.
-  Qed.
-
-  
-    *)
-
-  Lemma Or_destruct: forall P Q i m, (forall n, index_denote_aux i (Or P Q) m n) -> (forall n, index_denote_aux i P m n) \/ (forall n, index_denote_aux i Q m n).
+  Lemma Or_destruct: forall P Q i m, (forall n, n>0 -> index_denote_aux i (Or P Q) m n) -> (forall n, n>0 -> index_denote_aux i P m n) \/ (forall n, n>0 -> index_denote_aux i Q m n).
   Proof.
     intros.
     pose proof classic.
-    destruct (H0 (forall n : nat, index_denote_aux i P m n)).
+    destruct (H0 (forall n : nat, n>0 -> index_denote_aux i P m n)).
     - left. exact H1.
     - right. pose proof not_all_ex_not nat _ H1.
       destruct H2 as [n ?].
@@ -894,93 +780,29 @@ Module Type FOO.
         { intro.
           apply H2.
           pose proof index_denote_inner_NE i P.
-          destruct H5 as [? _].
+          destruct H5 as [? _]. intro.
           apply H5 with n0;assumption.
         }
         specialize H with n0.
-        simpl in H.
-        destruct H.
-        + apply H4 in H. inversion H.
-        + exact H.
+        destruct n0.
+        - inversion H3. rewrite H5 in H2. apply False_ind, H2. intro. inversion H6.
+        - assert (S n0>0) by omega. apply H in H5.
+          simpl in H5.
+          destruct H5.
+          + apply H4 in H5. inversion H5.
+          + exact H5.
       }
       intros.
       pose proof H0 (n0>=n).
-      destruct H4.
-      + apply H3. exact H4.
-      + apply not_ge in H4.
-        pose proof index_denote_inner_NE i Q.
-        destruct H5 as [? _].
-        apply H5 with n;[|omega].
+      destruct H5.
+      + apply H3. exact H5.
+      + apply not_ge in H5.
+        destruct (index_denote_inner_NE i Q) as [? _].
+        apply H6 with n;[|omega].
         apply H3. omega.
   Qed.
 
-(*    
-  Theorem fully_equa: forall P, DeriveN2D P /\ DeriveN2I P /\ DeriveI2N P /\ DeriveI2D P /\ DeriveD2I P /\ DeriveD2N P.
-  Proof.
-    intros. split;[apply DeriveN2D_always|].
-    induction P; apply Derive_3_to_5.
-    - intros m i P n. simpl in *. destruct n; auto.
-    - intros m i P. specialize P with 1. simpl in *. exact P.
-    - intros m i n P. simpl in P. destruct n;[|exists m;split;[apply feM_EQ|apply P]].
-      exists (i2 (fun x => if beq_nat x (denote_term i l) then (Some (inl (denote_term i v))) else None)).
-      split;[apply feM_0_always|]. simpl. rewrite i1_i2.
-      split;[rewrite <- beq_nat_refl; reflexivity|].
-      intros. apply Nat.eqb_neq in H. rewrite H.
-      reflexivity.
-    - apply DeriveN2I_MapstoF;tauto.
-    - apply DeriveI2N_MapstoF;tauto.
-    - apply DeriveI2D_MapstoF;tauto.
-    - destruct IHP1 as [HP1 IHP1], IHP2 as [HP2 IHP2]. intros m i HP n. simpl in *.
-      destruct HP; [left;apply HP1;exact H|right;apply HP2;exact H].
-    - destruct IHP1 as [_ [HP1 IHP1]], IHP2 as [_ [HP2 IHP2]]. intros m i HP. simpl.
-      apply Or_destruct in HP.
-      destruct HP;[left;apply HP1|right;apply HP2];exact H.
-    - destruct IHP1 as [_ [_ [HP1 IHP1]]], IHP2 as [_ [_ [HP2 IHP2]]].
-      intros m i n HP. simpl in *.
-      destruct HP.
-      + apply HP1 in H. destruct H as [m' [? ?]]. exists m'.
-        split;[exact H|]. left. exact H0.
-      + apply HP2 in H. destruct H as [m' [? ?]]. exists m'.
-        split;[exact H|]. right. exact H0.
-    - destruct IHP as [? _]. intros m i HP n. simpl in *.
-      destruct HP as [hP1 hP2]. split;[exact hP1|apply H; exact hP2].
-    - destruct IHP as [_ [? _]]. intros m i HP. simpl.
-      simpl in HP.
-      assert (forall n:nat, index_denote_aux i P0 m n).
-      { intro. destruct (HP n) as [_ ?]. exact H0. }
-      apply H in H0. destruct (HP 0) as [? _].
-      split; assumption.
-    - intros m i n HP. simpl in *.
-      destruct HP.
-      destruct IHP as [_ [_ [? _]]].
-      apply H1 in H0.
-      destruct H0 as [m' [? ?]].
-      exists m'.
-      split;[exact H0|split;[exact H|exact H2]].
-    - destruct IHP1 as [HP1 _], IHP2 as [HP2 _]. intros m i HP n.
-      destruct HP as [m1 [m2 [? [? ?]]]].
-      exists m1, m2. split;[exact H|]. split;[apply HP1; exact H0|apply HP2; exact H1].
-    - destruct IHP1 as [? [HP1 ?]], IHP2 as [? [HP2 ?]]. intros m i HP.
-      admit. (* sepcon I2N *)
-    - destruct IHP1 as [_ [_ [HP1 IHP1]]], IHP2 as [_ [_ [HP2 IHP2]]].
-      intros m i n HP. simpl in *.
-      destruct HP as [m1 [m2 [? [? ?]]]].
-      specialize (HP1 m1 i n H0). specialize (HP2 m2 i n H1).
-      destruct HP1 as [m1' [? ?]], HP2 as [m2' [? ?]].
-      destruct n.
-      + admit. (* sepcon I2D does not hold only for n=0 *)
-      + pose proof feM_join m1 m2 m m1' m2' n H2 H4 H.
-        destruct H6 as [m' [? ?]].
-        exists m'.
-        split;[exact H6|].
-        exists m1', m2'.
-        split;[exact H7|].
-        split;assumption.
-    - destruct IHP as [? _]. admit. (* exists N2I *)
-    - destruct IHP as [_ [? _]]. admit. (* exists I2N *)
-    - destruct IHP as [_ [_ [? _]]]. admit. (* exists I2D *)
-  Admitted.
-*)  
+
   Section fully_equal.
     Variables P Q: lang.
     Hypothesis N2D_P: DeriveN2D P.
@@ -1004,32 +826,14 @@ Module Type FOO.
     Proof. intros l v m i P0 n. simpl in *. destruct n; auto. Qed.
     Theorem I2D_MapstoV: forall l v, DeriveI2D (MapstoV l v).
     Proof.
-      intros l v m i n P0. simpl in P0. destruct n;[|exists m;split;[apply feM_EQ|apply P0]].
-      exists (i2 (fun x => if beq_nat x (denote_term i l) then (Some (inl (denote_term i v))) else None)).
-      assert (denote_term i l =? denote_term i l = true).
-      { symmetry. apply beq_nat_refl. }
-      split;[apply feM_0_always|]. simpl. rewrite i1_i2. unfold m_update. rewrite H.                    split;[reflexivity|].
-      intros. apply Nat.eqb_neq in H0. replace (denote_term i l =? l') with (l' =? denote_term i l) by apply Nat.eqb_sym. rewrite H0. reflexivity.
+      intros l v m i n hn P0. simpl in P0. destruct n;[inversion hn|exists m;split;[apply feM_EQ|apply P0]].
     Qed.
     Theorem I2N_MapstoV: forall l v, DeriveI2N (MapstoV l v).
-    Proof. intros l v m i P0. specialize P0 with 1. simpl in *. exact P0. Qed.
+    Proof. intros l v m i P0. specialize P0 with 1. simpl in *. apply P0. omega. Qed.
     Theorem D2I_MapstoV: forall l v, DeriveD2I (MapstoV l v).
     Proof. intros. apply DeriveD2I_by_N2I. apply N2I_MapstoV. Qed.
     Theorem D2N_MapstoV: forall l v, DeriveD2N (MapstoV l v).
     Proof. intros. apply DeriveD2N_only_way;[apply D2I_MapstoV|apply I2N_MapstoV]. Qed.
-
-    Theorem N2D_VarP: forall v, DeriveN2D (VarP v).
-    Proof. intros. apply DeriveN2D_always. Qed.
-    Theorem N2I_VarP: forall v, DeriveN2I (VarP v).
-    Proof. intros v m i H n. simpl in *. destruct n; auto. Qed.
-    Theorem I2D_VarP: forall v, DeriveI2D (VarP v).
-    Proof. intros v m i n H. simpl in *. apply interp_prop. exact H. Qed.
-    Theorem I2N_VarP: forall v, DeriveI2N (VarP v).
-    Proof. intros v m i H. simpl in *. exact H. Qed.
-    Theorem D2I_VarP: forall v, DeriveD2I (VarP v).
-    Proof. intros. apply DeriveD2I_by_N2I. apply N2I_VarP. Qed.
-    Theorem D2N_VarP: forall v, DeriveD2N (VarP v).
-    Proof. intros. apply DeriveD2N_only_way;[apply D2I_VarP|apply I2N_VarP]. Qed.
 
     Theorem N2D_MapstoF: forall p P0 Q0, DeriveN2D (MapstoF p P0 Q0).
     Proof. intros. apply DeriveN2D_always. Qed.
@@ -1037,9 +841,9 @@ Module Type FOO.
     Proof. intros. apply DeriveN2I_MapstoF; assumption. Qed.
     Theorem I2D_MapstoF: forall p, DeriveI2D (MapstoF p P Q).
     Proof.
-      intros p m i n H. simpl in *.
+      intros p m i n hn0 H. simpl in *.
       destruct n.
-      - exists (i2 (fun x => if beq_nat x (denote_term i p) then (Some (inr (fun _ _ _ _ => False))) else None)).
+      - (*exists (i2 (fun x => if beq_nat x (denote_term i p) then (Some (inr (fun _ _ _ _ => False))) else None)).
       split;[apply feM_0_always|].
       rewrite i1_i2.
       split.
@@ -1047,14 +851,15 @@ Module Type FOO.
         + exists (fun _ _ _ _ => False).
           split.
           * rewrite <- beq_nat_refl. reflexivity.
-          * intros. apply H1 in k. inversion k.
+          * intros. apply H1 in k. inversion k.*)
+        inversion hn0.
       - destruct H. pose proof H0 n.
         assert (n<=n) by omega. apply H1 in H2. destruct H2 as [f [? ?]].
         clear H1.
         remember (fun m1 m2 k n' =>
                     (n'<=n -> f m1 m2 k n') /\
                     (n'>n -> f m1 m2 k n /\
-                             forall n'', n''<=n' -> k<=n'' ->
+                             forall n'', n''>0 -> n''<=n' -> k<n'' ->
                                              index_denote_aux i P m1 n'' ->
                                              index_denote_aux i Q m2 (n''-k)
                     )
@@ -1071,16 +876,14 @@ Module Type FOO.
                 split;[apply (Func_NDI f m1 m2 m1' m2' k n H11 H12); exact H7|].
                 intros.
                 destruct (index_denote_inner_NE i Q).
-                clear H5 H6 H8 H9 H11 H12 H16.
+                clear H5 H6 H8 H9 H11 H12.
                 assert (n1-k>=n''-k) by omega.
                 pose proof feM_mono _ _ _ _ H5 H4.
-                apply (H17 _ _ _ H6).
-                apply (H10 n'' H13 H14).
-                clear H4 H7 H10 H14 H17 H5 H6.
+                apply (H18 _ _ _ H6).
+                apply (H10 n'' H13 H14);[exact H15|].
                 destruct (index_denote_inner_NE i P) as [_ ?].
-                assert (n1>=n'') by omega.
-                pose proof feM_mono _ _ _ _ H5 H1. apply feM_EQ in H6.
-                apply (H4 _ _ _ H6 H15).
+                pose proof feM_mono _ _ _ _ H14 H1. apply feM_EQ in H9.
+                apply (H8 _ _ _ H9 H16).
             + split;intros.
               * apply H5 in H7. apply (Func_NDI f m1 m2 m1' m2' k n1 H1 H4). exact H7.
               * assert (n1>=n) by omega. assert (n1-k>=n-k) by omega.
@@ -1090,16 +893,14 @@ Module Type FOO.
                 split;[apply (Func_NDI f m1 m2 m1' m2' k n H11 H12); exact H7|].
                 intros.
                 destruct (index_denote_inner_NE i Q).
-                clear H5 H6 H8 H9 H11 H12 H16.
+                clear H5 H6 H8 H9 H11 H12.
                 assert (n1-k>=n''-k) by omega.
                 pose proof feM_mono _ _ _ _ H5 H4. apply feM_EQ in H6.
-                apply (H17 _ _ _ H6).
-                apply (H10 n'' H13 H14).
-                clear H4 H7 H10 H14 H17 H5 H6.
+                apply (H18 _ _ _ H6).
+                apply (H10 n'' H13 H14);[exact H15|].
                 destruct (index_denote_inner_NE i P) as [_ ?].
-                assert (n1>=n'') by omega.
-                pose proof feM_mono _ _ _ _ H5 H1.
-                apply (H4 _ _ _ H6 H15). 
+                pose proof feM_mono _ _ _ _ H14 H1.
+                apply (H8 _ _ _ H9 H16). 
           - rewrite Heqf'; intros. destruct H1. split.
             + intros. destruct (n1<=?n) eqn:hn.
               * apply Nat.leb_le in hn. pose proof H1 hn.
@@ -1108,16 +909,16 @@ Module Type FOO.
                 apply Func_downwards_closed with n. exact H7. exact H6.
             + intros. assert (n1>n) by omega. pose proof H5 H7.
               destruct H8. split;[exact H8|].
-              intros. assert (n''<=n1) by omega. apply (H9 n'' H13 H11 H12).
+              intros. assert (n''<=n1) by omega. apply (H9 n'' H10 H14 H12 H13).
           - rewrite Heqf'; intros. destruct H4.
             destruct (n1<=?n) eqn: hn.
             + apply Nat.leb_le in hn.
               pose proof H4 hn.
               apply Func_Prop in H6;[|exact H1]. destruct H6 as [m11 [m22 [? [? ?]]]].
-              specialize H8 with n. assert (k<=n) by omega.
+              specialize H8 with n. assert (k<n) by omega.
               destruct (classic (index_denote_aux i P m11 n)).
               * pose proof H3 _ _ _ H9 H10 H8.
-                apply I2D_Q in H11. destruct H11 as [m2'' [? ?]].
+                apply I2D_Q in H11;[|omega]. destruct H11 as [m2'' [? ?]].
                 exists m11, m2''.
                 split;[exact H6|].
                 assert (n-k>=n1-k) by omega.
@@ -1132,7 +933,7 @@ Module Type FOO.
                 }
                 split; intro;
                   [assert (n>=nn) by omega; apply Func_downwards_closed with n; assumption|].
-                split;[exact H16|intros;apply N2I_Q;exact H12].
+                split;[exact H16|intros;apply N2I_Q;[exact H12|omega]].
               * exists m11, m22.
                 split;[exact H6|split;[exact H7|intros]].
                 split; intro;
@@ -1141,17 +942,19 @@ Module Type FOO.
                 intros.
                 destruct (n''<=?n) eqn:hn''.
                 -- apply Nat.leb_le in hn''. assert (n>=n'') by omega.
-                   pose proof Func_downwards_closed _ _ _ _ _ _ H8 H15.
+                   pose proof Func_downwards_closed _ _ _ _ _ _ H8 H16.
                    destruct (H0 n'' hn'') as [f'' [? ?]].
-                   rewrite H17 in H2; inversion H2; subst.
-                   apply (H18 m11 m22 k H13 H14 H16).
+                   rewrite H18 in H2; inversion H2; subst.
+                   apply (H19 m11 m22 k H14 H15 H17).
                 -- apply Nat.leb_gt in hn''. apply False_ind. apply H10.
                    destruct (index_denote_inner_NE i P) as [? _]. assert (n''>=n) by omega.
-                   apply H15 with n''; assumption.
+                   apply H16 with n''; assumption.
             + apply Nat.leb_gt in hn. assert (n1>n) by omega. destruct (H5 H6).
               destruct (classic (index_denote_aux i P m1 n1)).
-              * assert (n1<=n1) by omega. pose proof H8 n1 H10 H1 H9.
-                destruct (I2D_Q _ _ _ H11) as [m22 [? ?]].
+              * assert (n1<=n1) by omega. assert (n1>0) as hn1 by omega.
+                pose proof H8 n1 hn1 H10 H1 H9.
+                assert (n1-k>0) as hn1k by omega.
+                destruct (I2D_Q _ _ _ hn1k H11) as [m22 [? ?]].
                 exists m1, m22.
                 split;[apply feM_EQ|].
                 split;[exact H12|].
@@ -1164,7 +967,7 @@ Module Type FOO.
                 split; intro;
                   [assert (n>=nn) by omega; apply Func_downwards_closed with n; assumption|].
                 split;[exact H14|].
-                intros. apply N2I_Q. exact H13.
+                intros. apply N2I_Q; [exact H13|omega].
               * exists m1, m2.
                 split;[apply feM_EQ|split;[apply feM_EQ|intros]].
                 split; intro;
@@ -1175,7 +978,7 @@ Module Type FOO.
                    destruct (index_denote_inner_NE i P) as [? _].
                    apply Nat.leb_gt in hn''.
                    assert (n''>=n1) by omega.
-                   apply (H14 _ _ _ H13 H15).
+                   apply (H15 _ _ _ H14 H16).
           - rewrite Heqf'. intros. destruct H4.
             destruct (n1 <=? n) eqn:hn.
             + apply Nat.leb_le in hn.
@@ -1183,9 +986,10 @@ Module Type FOO.
               pose proof Func_Property f m1 m2 k n1 H1 H7 m11 H5.
               destruct H8 as [m22 [? ?]].
               destruct (classic (index_denote_aux i P m11 n)).
-              * assert (k<=n) by omega. assert (f m11 m22 k n) by apply H9.
+              * assert (k<n) by omega. assert (f m11 m22 k n) by apply H9.
                 pose proof H3 _ m22 _ H11 H10 H12.
-                destruct (I2D_Q _ _ _ H13) as [m2'' [? ?]].
+                assert (n-k>0) as hnk by omega.
+                destruct (I2D_Q _ _ _ hnk H13) as [m2'' [? ?]].
                 exists m2''.
                 split.
                 -- apply feM_trans with m22;[exact H8|].
@@ -1199,7 +1003,7 @@ Module Type FOO.
                    split; intro;
                      [apply Func_downwards_closed with n;[exact H16|omega]|].
                    split;[exact H16|].
-                  intros. apply N2I_Q. exact H15.
+                  intros. apply N2I_Q; [exact H15|omega].
               * exists m22.
                 split;[exact H8|].
                 intros.
@@ -1209,13 +1013,13 @@ Module Type FOO.
                 destruct (n''<=?n) eqn:hn''.
                 -- apply Nat.leb_le in hn''.
                    destruct (H0 n'' hn'') as [f'' [? ?]].
-                   rewrite H15 in H2; inversion H2; subst.
+                   rewrite H16 in H2; inversion H2; subst.
                    specialize H9 with n''.
-                   apply (H16 _ _ _ H13 H14 H9).
+                   apply (H17 _ _ _ H14 H15 H9).
                 -- apply Nat.leb_gt in hn''.
                    apply False_ind. apply H10.
                    destruct (index_denote_inner_NE i P) as [? _].
-                   apply H15 with n'';[exact H14|omega].
+                   apply H16 with n'';[exact H15|omega].
             + apply Nat.leb_gt in hn.
               pose proof H6 hn. destruct H7.
               destruct (classic (index_denote_aux i P m11 n1)).
@@ -1223,8 +1027,10 @@ Module Type FOO.
                 destruct (index_denote_inner_NE i P) as [_ ?].
                 apply feM_EQ in H5.
                 pose proof H11 _ _ _ H5 H9.
-                pose proof H8 _ H10 H1 H12.
-                destruct (I2D_Q _ _ _ H13) as [m22 [? ?]].
+                assert (n1>0) as hn1 by omega.
+                pose proof H8 _ hn1 H10 H1 H12.
+                assert (n1-k>0) as hn1k by omega.
+                destruct (I2D_Q _ _ _ hn1k H13) as [m22 [? ?]].
                 exists m22.
                 split;[exact H14|].
                 assert (f m11 m22 k n).
@@ -1238,7 +1044,7 @@ Module Type FOO.
                 split; intro;
                   [apply Func_downwards_closed with n;[assumption|omega]|].
                 split;[exact H16|].
-                intros. apply N2I_Q, H15.
+                intros. apply N2I_Q; [exact H15|omega].
               * exists m2.
                 split;[apply feM_EQ|].
                 intros.
@@ -1254,15 +1060,15 @@ Module Type FOO.
                    ++ intros.
                       destruct (n''<=?n1) eqn:hn''.
                       ** apply Nat.leb_le in hn''.
-                         apply (H8 n'' hn'' H12).
+                         apply (H8 n'' H11 hn'' H13).
                          pose proof feM_mono n1 n'' m1 m11 hn'' H5.
                          destruct (index_denote_inner_NE i P) as [_ ?].
-                         apply feM_EQ in H14.
-                         apply (H15 _ _ _ H14 H13).
+                         apply feM_EQ in H15.
+                         apply (H16 _ _ _ H15 H14).
                       ** apply Nat.leb_gt in hn''.
                          apply False_ind, H9.
                          destruct (index_denote_inner_NE i P) as [? _].
-                         apply (H14 m11 n'' n1 H13). omega.
+                         apply (H15 m11 n'' n1 H14). omega.
         }
         exists (i2 (m_update (i1 m) (denote_term i p) (Some (inr f')))).
         split.
@@ -1297,15 +1103,15 @@ Module Type FOO.
               destruct (n0 + k <=? n) eqn: hn.
               ** apply Nat.leb_le in hn.
                  pose proof H4 hn.
-                 assert (k<=n0+k) by omega.
-                 destruct (H0 (n0+k) hn) as [f'' [? ?]]. rewrite H2 in H8. inversion H8; subst.
-                 replace n0 with (n0+k-k) by omega. apply (H9 m1 m2 k H7);[|exact H6].
-                 apply N2I_P. exact H1.
+                 assert (k<n0+k) by omega.
+                 destruct (H0 (n0+k) hn) as [f'' [? ?]]. rewrite H9 in H2. inversion H2; subst.
+                 replace n0 with (n0+k-k) by omega. apply (H10 m1 m2 k H8);[|exact H7].
+                 apply N2I_P; [exact H1|omega].
               ** apply Nat.leb_gt in hn.
                  assert (n0+k>n) by omega.
-                 destruct (H5 H6).
-                 replace n0 with (n0+k-k) by omega. apply H8; try omega.
-                 apply N2I_P. exact H1.
+                 destruct (H6 H7).
+                 replace n0 with (n0+k-k) by omega. apply H9; try omega.
+                 apply N2I_P; [exact H1|omega].
     Qed.
     Theorem I2N_MapstoF: forall p, DeriveI2N (MapstoF p P Q).
     Proof. intros. apply DeriveI2N_MapstoF; assumption. Qed.
@@ -1321,16 +1127,18 @@ Module Type FOO.
       intros m i HP n.
       simpl in *.
       destruct HP.
-      - left. apply N2I_P. exact H.
-      - right. apply N2I_Q. exact H.
+      - left. apply N2I_P; [exact H|exact H0].
+      - right. apply N2I_Q; [exact H|exact H0].
     Qed.
     Theorem I2D_Or: DeriveI2D (Or P Q).
     Proof.
-      intros m i n HP.
+      intros m i n hn HP.
       simpl in *.
       destruct HP.
-      - apply I2D_P in H. destruct H as [m' [? ?]]. exists m'. split;[exact H|]. left. exact H0.
-      - apply I2D_Q in H. destruct H as [m' [? ?]]. exists m'. split;[exact H|]. right. exact H0.
+      - apply I2D_P in H;[|exact hn].
+        destruct H as [m' [? ?]]. exists m'. split;[exact H|]. left. exact H0.
+      - apply I2D_Q in H;[|exact hn].
+        destruct H as [m' [? ?]]. exists m'. split;[exact H|]. right. exact H0.
     Qed.
     Theorem I2N_Or: DeriveI2N (Or P Q).
     Proof.
@@ -1353,14 +1161,14 @@ Module Type FOO.
       simpl in *.
       destruct HP. split.
       - exact H.
-      - apply N2I_Q. exact H0.
+      - apply N2I_Q; [exact H0|exact H1].
     Qed.
     Theorem I2D_And: forall P0, DeriveI2D (And P0 Q).
     Proof.
-      intros P0 m i n HP.
+      intros P0 m i n hn HP.
       simpl in *.
       destruct HP.
-      apply I2D_Q in H0.
+      apply I2D_Q in H0;[|exact hn].
       destruct H0 as [m' [? ?]].
       exists m'.
       split;[exact H0|split;[exact H|exact H1]].
@@ -1368,9 +1176,9 @@ Module Type FOO.
     Theorem I2N_And: forall P0, DeriveI2N (And P0 Q).
     Proof.
       intros P0 m i H. simpl in *.
-      assert (forall n:nat, index_denote_aux i Q m n).
-      { intro. destruct (H n) as [_ ?]. exact H0. }
-      apply I2N_Q in H0. destruct (H 0) as [? _].
+      assert (forall n:nat, n>0 -> index_denote_aux i Q m n).
+      { intros. destruct (H n H0) as [_ ?]. exact H1. }
+      apply I2N_Q in H0. destruct (H 1) as [? _];[omega|].
       split;[exact H1|exact H0].
     Qed.
     Theorem D2I_And: forall P0, DeriveD2I (And P0 Q).
@@ -1388,20 +1196,17 @@ Module Type FOO.
       exists m1, m2.
       split;[exact H|].
       split.
-      - apply N2I_P. exact H0.
-      - apply N2I_Q. exact H1.
+      - apply N2I_P; [exact H0|exact H2].
+      - apply N2I_Q; [exact H1|exact H2].
     Qed.
     Theorem I2D_Sepcon: DeriveI2D (Sepcon P Q).
     Proof.
-      intros m i n HP.
+      intros m i n hn HP.
       simpl in *.
       destruct HP as [m1 [m2 [? [? ?]]]].
       destruct n.
-      - apply I2D_P in H0.
-        apply I2D_Q in H1.
-        destruct H0 as [m1' [? ?]], H1 as [m2' [? ?]].
-        admit.
-      - apply I2D_P in H0. apply I2D_Q in H1.
+      - inversion hn.
+      - apply I2D_P in H0;[|exact hn]. apply I2D_Q in H1;[|exact hn].
         destruct H0 as [m1' [? ?]], H1 as [m2' [? ?]].
         pose proof feM_join m1 m2 m m1' m2' n H0 H1 H.
         destruct H4 as [m' [? ?]].
@@ -1410,38 +1215,48 @@ Module Type FOO.
         exists m1', m2'.
         split;[exact H5|].
         split; assumption.
-    Admitted.
+    Qed.
     Theorem I2N_Sepcon: legal (Sepcon P Q) -> DeriveI2N (Sepcon P Q).
     Proof.
       intros Hlegal m i H.
       simpl in *.
       destruct Hlegal as [legal_P [legal_Q ?]].
       destruct H0 as [N ?].
-      pose proof (H N).
-      destruct H1 as [m1 [m2 [? [? ?]]]].
+      pose proof (H (S N)).
+      destruct H1 as [m1 [m2 [? [? ?]]]];[omega|].
       exists m1, m2.
       split;[exact H1|].
       split;[apply I2N_P|apply I2N_Q];intros.
       - destruct (le_dec n N).
         + destruct (index_denote_inner_NE i P) as [? _].
           assert (N>=n) by omega.
-          apply (H4 m1 N n H2 H5).
+          apply (H5 m1 (S N) n H2). omega.
         + assert (n>=N) by omega. clear n0.
           specialize H with n.
-          destruct H as [m1' [m2' [? [? ?]]]].
-          pose proof H0 n H4 m1 m2 m1' m2' m i H1 H H2 H5 H3 H6.
-          destruct H7 as [? _].
-          rewrite H7. exact H5.
+          destruct H as [m1' [m2' [? [? ?]]]];[exact H4|].
+          destruct (index_denote_inner_NE i P) as [? _].
+          destruct (index_denote_inner_NE i Q) as [? _].
+          assert (S N>=N) by omega.
+          pose proof H8 _ _ _ H2 H10.
+          pose proof H9 _ _ _ H3 H10.
+          pose proof H0 n H5 m1 m2 m1' m2' m i H1 H H11 H6 H12 H7.
+          destruct H13 as [? _].
+          rewrite H13. exact H6.
       - destruct (le_dec n N).
         + destruct (index_denote_inner_NE i Q) as [? _].
           assert (N>=n) by omega.
-          apply (H4 m2 N n H3 H5).
+          apply (H5 m2 (S N) n H3). omega.
         + assert (n>=N) by omega. clear n0.
           specialize H with n.
-          destruct H as [m1' [m2' [? [? ?]]]].
-          pose proof H0 n H4 m1 m2 m1' m2' m i H1 H H2 H5 H3 H6.
-          destruct H7 as [_ ?].
-          rewrite H7. exact H6.
+          destruct H as [m1' [m2' [? [? ?]]]];[exact H4|].
+          destruct (index_denote_inner_NE i P) as [? _].
+          destruct (index_denote_inner_NE i Q) as [? _].
+          assert (S N>=N) by omega.
+          pose proof H8 _ _ _ H2 H10.
+          pose proof H9 _ _ _ H3 H10.
+          pose proof H0 n H5 m1 m2 m1' m2' m i H1 H H11 H6 H12 H7.
+          destruct H13 as [_ ?].
+          rewrite H13. exact H7.
     Qed.
     Theorem D2I_Sepcon: DeriveD2I (Sepcon P Q).
     Proof. intros. apply DeriveD2I_by_N2I. apply N2I_Sepcon. Qed.
@@ -1451,13 +1266,14 @@ Module Type FOO.
     Theorem N2D_Exists: forall p P0, DeriveN2D (Exists p P0).
     Proof. intros. apply DeriveN2D_always. Qed.
     Theorem N2I_Exists: forall p, DeriveN2I (Exists p P).
-    Proof. intros p m i H n. simpl in *. destruct H. exists x. apply N2I_P. exact H. Qed.
+    Proof. intros p m i H n. simpl in *. destruct H. exists x.
+           apply N2I_P; [exact H|exact H0]. Qed.
     Theorem I2D_Exists: forall p, DeriveI2D (Exists p P).
     Proof.
-      intros p m i n H.
+      intros p m i n hn H.
       simpl in *.
       destruct H.
-      apply I2D_P in H.
+      apply I2D_P in H;[|exact hn].
       destruct H as [m' [? ?]].
       exists m'.
       split;[exact H|].
@@ -1469,19 +1285,23 @@ Module Type FOO.
       intros p Hlegal m i H. simpl in *.
       destruct Hlegal as [legal_P ?].
       destruct H0 as [N ?].
-      pose proof (H N).
+      assert (S N>0) by omega.
+      apply H in H1.
       destruct H1 as [l ?].
       exists l.
       apply I2N_P. intros.
       destruct (le_dec n N).
       - destruct (index_denote_inner_NE
-                    (interp_update_v i p l) P) as [? _].
-        apply (H2 m N n H1). omega.
+                    (interp_update i p l) P) as [? _].
+        apply (H3 m (S N) n H1). omega.
       - assert (n>=N) by omega.
         specialize H with n.
-        destruct H as [l' ?].
-        pose proof H0 n H2 m i l l' H1 H.
-        rewrite H3. exact H.
+        destruct H as [l' ?];[exact H2|].
+        destruct (index_denote_inner_NE (interp_update i p l) P) as [? _].
+        assert (S N>=N) by omega.
+        pose proof H4 _ _ _ H1 H5.
+        pose proof H0 n H3 m i l l' H6 H.
+        rewrite H7. exact H.
     Qed.
     Theorem D2I_Exists: forall p, DeriveD2I (Exists p P).
     Proof. intros. apply DeriveD2I_by_N2I. apply N2I_Exists. Qed.
@@ -1494,130 +1314,159 @@ Module Type FOO.
     Proof.
       intros p v m i H n. simpl in *.
       destruct n eqn: hn;[auto|].
-      intro. specialize H with r.
-      pose proof DeriveN2I_MapstoF p P Q I2N_P N2I_Q I2D_P m (interp_update_p i v r).
-      simpl in H0.
-      pose proof H0 H n.
-      rewrite hn in H1.
-      exact H1.
+      intros. specialize H with t.
+      split;[tauto|]. intros.
+      destruct H as [_ ?].
+      destruct H as [f [? ?]].
+      exists f.
+      split;[exact H|].
+      intros.
+      apply I2D_P in H4; [|omega].
+      destruct H4 as [m1' [? ?]].
+      pose proof (Func_Property f m1 m2 k n1 H3 H5 m1' H4).
+      destruct H7 as [m2' [? ?]].
+      pose proof H2 _ _ _ H6 H8.
+      destruct (index_denote_inner_NE (interp_update i v t) Q).
+      apply H11 with m2';[apply feM_EQ;exact H7|].
+      apply N2I_Q; [exact H9|omega].
     Qed.
-    Theorem I2D_MapstoF_forall: forall p v, DeriveI2D (MapstoF_forall p v P Q).
+    Theorem I2D_MapstoF_forall: forall p v, legal (MapstoF_forall p v P Q) -> DeriveI2D (MapstoF_forall p v P Q).
     Proof.
-      intros p v m i n H. simpl in *.
-      assert (forall r, denote_term (interp_update_p i v r) p = denote_term i p) as hp.
-      { intros. destruct p; simpl in *; reflexivity. }
-      destruct n.
-      - exists (i2 (fun x => if beq_nat x (denote_term i p) then (Some (inr (fun _ _ _ _ => False))) else None)).
+      intros p v lg m i n00 hngt0 H. simpl in *. destruct lg as [lP [lQ lg]].
+      destruct n00 eqn: hn0.
+      - (*exists (i2 (fun x => if beq_nat x (denote_term i p) then (Some (inr (fun _ _ _ _ => False))) else None)).
       split;[apply feM_0_always|].
       rewrite i1_i2.
       split.
-        + intros. apply Nat.eqb_neq in H0.
-          rewrite (hp r) in H0. rewrite H0. reflexivity.
+        + intros. apply Nat.eqb_neq in H0. rewrite H0. reflexivity.
         + exists (fun _ _ _ _ => False).
           split.
           * rewrite <- beq_nat_refl. reflexivity.
-          * intros. apply H1 in k. inversion k.
-      - destruct (H (Prop_Part i v)). pose proof H1 n.
-        assert (n<=n) by omega. apply H2 in H3. destruct H3 as [f [? ?]].
-        clear H2.
-       (* remember (fun m1 m2 k n' => forall r: actual_interp,
+          * intros. apply H1 in k. inversion k.*)
+        inversion hngt0.
+      - destruct (H p). pose proof H1 n.
+        assert (n<=n) by omega. destruct (H2 H3) as [f [? ?]].
+        remember (fun m1 m2 k n' => forall t,
                     (n'<=n -> f m1 m2 k n') /\
                     (n'>n -> f m1 m2 k n /\
-                             forall n'', n''<=n' -> k<=n'' ->
-                                             index_denote_aux (interp_update_p i v r) P m1 n'' ->
-                                             index_denote_aux (interp_update_p i v r) Q m2 (n''-k)
+                             forall n'', n''>0 -> n''<=n' -> k<n'' ->
+                                             index_denote_aux (interp_update i v t) P m1 n'' ->
+                                             index_denote_aux (interp_update i v t) Q m2 (n''-k)
                     )
                  ) as f'.
         assert (is_func f') as is_func_f'.
-        { intros m1 m2 m1' m2' k n1 n2. split;[|split;[|split]]; rewrite Heqf'; intros.
-          - split; intros; destruct (H6 r).
+        { intros m1 m2 m1' m2' k n1 n2. remember H4 as hf.
+          clear Heqhf H1 H2 H3 H4 H5.
+          split;[|split;[|split]]; rewrite Heqf'; intros.
+          - split; intros; destruct (H3 t).
             + split;intros.
-              * apply H7 in H9. apply (Func_NDI f m1 m2 m1' m2' k n1 H2 H5). exact H9.
+              * apply H4 in H6. apply (Func_NDI f m1 m2 m1' m2' k n1 H1 H2). exact H6.
               * assert (n1>=n) by omega. assert (n1-k>=n-k) by omega.
-                apply H8 in H9. destruct H9.
-                pose proof feM_mono n1 n m1 m1' H10 H2.
-                pose proof feM_mono (n1-k) (n-k) m2 m2' H11 H5.
-                split;[apply (Func_NDI f m1 m2 m1' m2' k n H13 H14); exact H9|].
+                apply H5 in H6. destruct H6.
+                pose proof feM_mono n1 n m1 m1' H7 H1.
+                pose proof feM_mono (n1-k) (n-k) m2 m2' H8 H2.
+                split;[apply (Func_NDI f m1 m2 m1' m2' k n H10 H11); exact H6|].
                 intros.
-                destruct (index_denote_inner_NE (interp_update_p i v r) Q).
+                destruct (index_denote_inner_NE (interp_update i v t) Q).
                 assert (n1-k>=n''-k) by omega.
-                pose proof feM_mono _ _ _ _ H20 H5.
-                apply (H19 _ _ _ H21).
-                apply (H12 n'' H15 H16).
-                destruct (index_denote_inner_NE (interp_update_p i v r) P) as [_ ?].
+                pose proof feM_mono _ _ _ _ H18 H2.
+                apply (H17 _ _ _ H19).
+                apply (H9 n'' H12 H13);[exact H14|].
+                destruct (index_denote_inner_NE (interp_update i v t) P) as [_ ?].
                 assert (n1>=n'') by omega.
-                pose proof feM_mono _ _ _ _ H23 H2. apply feM_EQ in H24.
-                apply (H22 _ _ _ H24 H17).
+                pose proof feM_mono _ _ _ _ H21 H1. apply feM_EQ in H22.
+                apply (H20 _ _ _ H22 H15).
             + split;intros.
-              * apply H7 in H9. apply (Func_NDI f m1 m2 m1' m2' k n1 H2 H5). exact H9.
+              * apply H4 in H6. apply (Func_NDI f m1 m2 m1' m2' k n1 H1 H2). exact H6.
               * assert (n1>=n) by omega. assert (n1-k>=n-k) by omega.
-                apply H8 in H9. destruct H9.
-                pose proof feM_mono n1 n m1 m1' H10 H2.
-                pose proof feM_mono (n1-k) (n-k) m2 m2' H11 H5.
-                split;[apply (Func_NDI f m1 m2 m1' m2' k n H13 H14); exact H9|].
+                apply H5 in H6. destruct H6.
+                pose proof feM_mono n1 n m1 m1' H7 H1.
+                pose proof feM_mono (n1-k) (n-k) m2 m2' H8 H2.
+                split;[apply (Func_NDI f m1 m2 m1' m2' k n H10 H11); exact H6|].
                 intros.
-                destruct (index_denote_inner_NE (interp_update_p i v r) Q).
+                destruct (index_denote_inner_NE (interp_update i v t) Q).
                 assert (n1-k>=n''-k) by omega.
-                pose proof feM_mono _ _ _ _ H20 H5. apply feM_EQ in H21.
-                apply (H19 _ _ _ H21).
-                apply (H12 n'' H15 H16).
-                destruct (index_denote_inner_NE (interp_update_p i v r) P) as [_ ?].
+                pose proof feM_mono _ _ _ _ H18 H2. apply feM_EQ in H19.
+                apply (H17 _ _ _ H19).
+                apply (H9 n'' H12 H13);[exact H14|].
+                destruct (index_denote_inner_NE (interp_update i v t) P) as [_ ?].
                 assert (n1>=n'') by omega.
-                pose proof feM_mono _ _ _ _ H23 H2.
-                apply (H22 _ _ _ H24 H17). 
-          - destruct (H2 r). split.
+                pose proof feM_mono _ _ _ _ H21 H1.
+                apply (H20 _ _ _ H22 H15). 
+          - destruct (H1 t). split.
             + intros. destruct (n1<=?n) eqn:hn.
-              * apply Nat.leb_le in hn. pose proof H6 hn.
-                apply Func_downwards_closed with n1; [exact H9|exact H5].
-              * apply Nat.leb_gt in hn. pose proof H7 hn. destruct H9 as [? _].
-                apply Func_downwards_closed with n; [exact H9|exact H8].
-            + intros. assert (n1>n) by omega. pose proof H7 H9.
-              destruct H10. split;[exact H10|].
+              * apply Nat.leb_le in hn. pose proof H3 hn.
+                apply Func_downwards_closed with n1; [exact H6|exact H2].
+              * apply Nat.leb_gt in hn. pose proof H4 hn. destruct H6 as [? _].
+                apply Func_downwards_closed with n; [exact H6|exact H5].
+            + intros. assert (n1>n) by omega. destruct (H4 H6).
+              split;[exact H7|].
               intros.
-              apply (H11 n''); try assumption. omega.
-          - (*destruct (H5 r).
+              apply (H8 n''); try assumption. omega.
+          - destruct (H2 p).
             destruct (n1<=?n) eqn: hn.
             + apply Nat.leb_le in hn.
-              pose proof H4 hn.
-              apply Func_Prop in H6;[|exact H1]. destruct H6 as [m11 [m22 [? [? ?]]]].
-              specialize H8 with n. assert (k<=n) by omega.
-              destruct (classic (index_denote_aux i P m11 n)).
-              * pose proof H3 _ _ _ H9 H10 H8.
-                apply I2D_Q in H11. destruct H11 as [m2'' [? ?]].
+              pose proof H3 hn.
+              apply Func_Prop in H5;[|exact H1]. destruct H5 as [m11 [m22 [? [? ?]]]].
+              specialize H7 with n. assert (k<n) by omega.
+              destruct (classic (exists tt, index_denote_aux (interp_update i v tt) P m11 n)).
+              * destruct H9 as [tt ?].
+                destruct (H tt) as [_ ?].
+                assert (n<=n) by omega. apply H10 in H11.
+                destruct H11 as [f'' [? ?]].
+                rewrite H11 in hf. inversion hf. subst.
+                clear hf. remember H11 as hf. clear Heqhf H11.
+                pose proof H12 _ _ _ H8 H9 H7.
+                apply I2D_Q in H11;[|omega]. destruct H11 as [m2'' [? ?]].
                 exists m11, m2''.
-                split;[exact H6|].
+                split;[exact H5|].
                 assert (n-k>=n1-k) by omega.
-                pose proof feM_mono (n-k) (n1-k) m22 m2'' H13 H11.
-                pose proof feM_trans (n1-k) m2 m22 m2'' H7 H14.
-                split;[exact H15|].
+                pose proof feM_mono (n-k) (n1-k) m22 m2'' H14 H11.
+                pose proof feM_trans (n1-k) m2 m22 m2'' H6 H15.
+                split;[exact H16|].
                 intros.
                 assert (f m11 m2'' k n).
                 { assert (feM n m11 m11) by apply feM_EQ. apply feM_EQ in H11.
-                  pose proof Func_NDI f m11 m2'' m11 m22 k n H16 H11.
-                  apply H17. exact H8.
+                  pose proof Func_NDI f m11 m2'' m11 m22 k n H17 H11.
+                  apply H18. exact H7.
                 }
                 split; intro;
                   [assert (n>=nn) by omega; apply Func_downwards_closed with n; assumption|].
-                split;[exact H16|intros;apply N2I_Q;exact H12].
+                split;[exact H17|].
+                intros.
+                assert (n>0) by omega.
+                destruct (lg n n'' H23 H19 m11 i tt t) as [? _].
+                pose proof H24 H9 H22. subst.
+                apply N2I_Q; [exact H13|omega].
               * exists m11, m22.
-                split;[exact H6|split;[exact H7|intros]].
+                split;[exact H5|split;[exact H6|intros]].
                 split; intro;
                   [assert (n>=nn) by omega; apply Func_downwards_closed with n; assumption|].
-                split;[exact H8|].
+                split;[exact H7|].
                 intros.
                 destruct (n''<=?n) eqn:hn''.
-                -- apply Nat.leb_le in hn''. assert (n>=n'') by omega.
-                   pose proof Func_downwards_closed _ _ _ _ _ _ H8 H15.
+                -- apply Nat.leb_le in hn''.
+                   pose proof Func_downwards_closed _ _ _ _ _ _ H7 hn''.
+                   clear H0; destruct (H t) as [_ ?].
                    destruct (H0 n'' hn'') as [f'' [? ?]].
-                   rewrite H17 in H2; inversion H2; subst.
-                   apply (H18 m11 m22 k H13 H14 H16).
-                -- apply Nat.leb_gt in hn''. apply False_ind. apply H10.
-                   destruct (index_denote_inner_NE i P) as [? _]. assert (n''>=n) by omega.
+                   rewrite H16 in hf; inversion hf; subst.
+                   apply (H17 m11 m22 k H13 H14 H15).
+                -- apply Nat.leb_gt in hn''. apply False_ind. apply H9.
+                   destruct (index_denote_inner_NE (interp_update i v t) P) as [? _].
+                   assert (n''>=n) by omega.
+                   exists t.
                    apply H15 with n''; assumption.
-            + apply Nat.leb_gt in hn. assert (n1>n) by omega. destruct (H5 H6).
-              destruct (classic (index_denote_aux i P m1 n1)).
-              * assert (n1<=n1) by omega. pose proof H8 n1 H10 H1 H9.
-                destruct (I2D_Q _ _ _ H11) as [m22 [? ?]].
+            + apply Nat.leb_gt in hn. destruct (H4 hn).
+              destruct (classic (exists tt, index_denote_aux (interp_update i v tt) P m1 n1)).
+              * assert (n1<=n1) by omega.
+                destruct H7 as [tt ?].
+                clear H3 H4 H5 H6.
+                destruct (H2 tt).
+                destruct (H4 hn).
+                assert (n1>0) by omega.
+                pose proof H6 n1 H9 H8 H1 H7.
+                assert (n1-k>0) by omega.
+                destruct (I2D_Q _ _ _ H11 H10) as [m22 [? ?]].
                 exists m1, m22.
                 split;[apply feM_EQ|].
                 split;[exact H12|].
@@ -1625,277 +1474,140 @@ Module Type FOO.
                 assert (f m1 m22 k n).
                 { assert (feM n m1 m1) by apply feM_EQ.
                   assert (feM (n-k) m2 m22). { apply feM_mono with (n1-k);[omega|exact H12]. }
-                  apply (Func_NDI f m1 m2 m1 m22 k n H14 H15). exact H7.
+                  apply (Func_NDI f m1 m2 m1 m22 k n H14 H15). exact H5.
                 }
                 split; intro;
                   [assert (n>=nn) by omega; apply Func_downwards_closed with n; assumption|].
                 split;[exact H14|].
-                intros. apply N2I_Q. exact H13.
-              * destruct (classic (index_denote_aux i P m1 n)).
-                -- assert (exists n0,
-                              n0>=n /\
-                              n0<n1 /\
-                              index_denote_aux i P m1 n0 /\
-                              ~ index_denote_aux i P m1 (S n0)).
-                   { destruct (classic (exists n0 : nat,
-                                           n0 >= n /\
-                                           n0 < n1 /\
-                                           index_denote_aux i P m1 n0 /\
-                                           ~ index_denote_aux i P m1 (S n0)));
-                       [assumption|]. apply False_ind. apply H9.
-                     pose proof not_ex_all_not nat _ H11.
-                     assert (forall n0, n0>=n -> n0<n1 -> index_denote_aux i P m1 n0 ->
-                                        index_denote_aux i P m1 (S n0)).
-                     { intros.
-                       specialize H12 with n0.
-                       simpl in H12.
-                       destruct (classic (index_denote_aux i P m1 (S n0)));[assumption|].
-                       apply False_ind. apply H12.
-                       split;[assumption|split;[assumption|split;assumption]].
-                     }
-                     assert (forall n0:nat, n0>=n -> n0<=n1 -> index_denote_aux i P m1 n0).
-                     { intro. remember (n0-n) as dn. intros.
-                       replace n0 with (dn+n) in * by omega.
-                       induction dn.
-                       - replace (0+n) with n by omega. exact H10.
-                       - replace (S dn + n) with (S (dn+n)) by omega.
-                         apply H13.
-                         + omega.
-                         + omega.
-                         + apply IHdn; omega.
-                     }
-                     apply H14;omega.
-                   }
-                   destruct H11 as [n0 [? [? [? ?]]]].
-                   exists m1, m2.
-                   split;[apply feM_EQ|]. split;[apply feM_EQ|].
-                   intros.
-                   split; intro;
-                     [assert (n>=nn) by omega;apply Func_downwards_closed with n;assumption|].
-                   split;[exact H7|].
-                   intros.
-                   destruct (n''<=?n0) eqn:hn''.
-                   ++ apply H8; try assumption.
-                      apply Nat.leb_le in hn''. omega.
-                   ++ apply Nat.leb_gt in hn''. assert (n''>=S n0) by omega.
-                      apply False_ind. apply H14.
-                      destruct (index_denote_inner_NE i P) as [? _].
-                      apply (H20 _ _ _ H18 H19).
-                -- exists m1, m2.
-                   split;[apply feM_EQ|split;[apply feM_EQ|]].
-                   intros.
-                   split; intro;
-                     [assert (n>=nn) by omega;apply Func_downwards_closed with n;assumption|].
-                   split;[exact H7|].
-                   intros.
-                   destruct (n''<=?n) eqn: hn''.
-                   ++ apply Nat.leb_le in hn''.
-                      assert (n''<=n1) by omega.
-                      apply (H8 _ H15 H13 H14).
-                   ++ apply False_ind. apply H10.
-                      apply Nat.leb_gt in hn''.
-                      destruct (index_denote_inner_NE i P) as [? _].
-                      assert (n''>=n) by omega.
-                      apply (H15 _ _ _ H14 H16).*) admit.
-          - (*destruct H4.
+                intros. apply N2I_Q;[|omega].
+                destruct (lg n1 n'' H9 H16 m1 i tt t) as [? _].
+                pose proof H20 H7 H19. subst.
+                exact H13.
+              * exists m1, m2.
+                split;[apply feM_EQ|split;[apply feM_EQ|intros]].
+                split; intro;
+                  [apply Func_downwards_closed with n;[exact H5|omega]|split;[exact H5|intros]].
+                destruct (n''<=?n1) eqn: hn''.
+                -- destruct (H2 t) as [_ ?]. clear H6; destruct (H13 hn) as [_ ?].
+                   apply H6; try assumption. apply Nat.leb_le, hn''.
+                -- apply False_ind, H7.
+                   destruct (index_denote_inner_NE (interp_update i v t) P) as [? _].
+                   exists t.
+                   apply Nat.leb_gt in hn''.
+                   assert (n''>=n1) by omega.
+                   apply (H13 _ _ _ H12 H14).
+          - destruct (H2 p).
             destruct (n1 <=? n) eqn:hn.
             + apply Nat.leb_le in hn.
               pose proof H4 hn.
-              pose proof Func_Property f m1 m2 k n1 H1 H7 m11 H5.
-              destruct H8 as [m22 [? ?]].
-              destruct (classic (index_denote_aux i P m11 n)).
-              * assert (k<=n) by omega. assert (f m11 m22 k n) by apply H9.
-                pose proof H3 _ m22 _ H11 H10 H12.
-                destruct (I2D_Q _ _ _ H13) as [m2'' [? ?]].
+              pose proof Func_Property f m1 m2 k n1 H1 H6 m11 H3.
+              destruct H7 as [m22 [? ?]].
+              destruct (classic (exists tt, index_denote_aux (interp_update i v tt) P m11 n)).
+              * assert (k<n) by omega. assert (f m11 m22 k n) by apply H8.
+                destruct H9 as [tt ?].
+                destruct (H tt) as [_ ?].
+                assert (n<=n) by omega.
+                destruct (H12 _ H13) as [f'' [? ?]].
+                rewrite H14 in hf. inversion hf. subst.
+                clear hf; remember H14 as hf; clear Heqhf H14.
+                pose proof H15 _ m22 _ H10 H9 H11.
+                assert (n-k>0) as hnk by omega.
+                destruct (I2D_Q _ _ _ hnk H14) as [m2'' [? ?]].
                 exists m2''.
                 split.
-                -- apply feM_trans with m22;[exact H8|].
-                   apply feM_mono with (n-k);[omega|exact H14].
+                -- apply feM_trans with m22;[exact H7|].
+                   apply feM_mono with (n-k);[omega|exact H16].
                 -- intros.
                    assert (f m11 m2'' k n).
                    { pose proof Func_NDI f m11 m22 m11 m2'' k n.
-                     apply H16; try assumption.
+                     apply H18; try assumption.
                      apply feM_EQ.
                    }
                    split; intro;
-                     [apply Func_downwards_closed with n;[exact H16|omega]|].
-                   split;[exact H16|].
-                  intros. apply N2I_Q. exact H15.
+                     [apply Func_downwards_closed with n;[exact H18|omega]|].
+                   split;[exact H18|].
+                   intros. apply N2I_Q;[|omega].
+                   assert (n>0) by omega.
+                   destruct (lg n n'' H24 H20 m11 i tt t) as [? _].
+                   pose proof H25 H9 H23. subst.
+                   exact H17.
               * exists m22.
-                split;[exact H8|].
+                split;[exact H7|].
                 intros.
-                split;intro;[apply H9|].
-                split;[apply H9|].
+                split;intro;[apply H8|].
+                split;[apply H8|].
                 intros.
                 destruct (n''<=?n) eqn:hn''.
                 -- apply Nat.leb_le in hn''.
-                   destruct (H0 n'' hn'') as [f'' [? ?]].
-                   rewrite H15 in H2; inversion H2; subst.
-                   specialize H9 with n''.
-                   apply (H16 _ _ _ H13 H14 H9).
+                   destruct (H t) as [_ ?].
+                   destruct (H15 n'' hn'') as [f'' [? ?]].
+                   rewrite H16 in hf; inversion hf; subst.
+                   specialize H8 with n''.
+                   apply (H17 _ _ _ H13 H14 H8).
                 -- apply Nat.leb_gt in hn''.
-                   apply False_ind. apply H10.
-                   destruct (index_denote_inner_NE i P) as [? _].
+                   apply False_ind, H9. exists t.
+                   destruct (index_denote_inner_NE (interp_update i v t) P) as [? _].
                    apply H15 with n'';[exact H14|omega].
             + apply Nat.leb_gt in hn.
-              pose proof H6 hn. destruct H7.
-              destruct (classic (index_denote_aux i P m11 n1)).
+              destruct (classic (exists tt, index_denote_aux (interp_update i v tt) P m11 n1)).
               * assert (n1<=n1) by omega.
-                destruct (index_denote_inner_NE i P) as [_ ?].
-                apply feM_EQ in H5.
-                pose proof H11 _ _ _ H5 H9.
-                pose proof H8 _ H10 H1 H12.
-                destruct (I2D_Q _ _ _ H13) as [m22 [? ?]].
+                destruct H6 as [tt ?].
+                destruct (index_denote_inner_NE (interp_update i v tt) P) as [_ ?].
+                apply feM_EQ in H3.
+                pose proof H8 _ _ _ H3 H6.
+                clear H4 H5. destruct (H2 tt).
+                destruct (H5 hn).
+                assert (n1>0) as hn1gt0 by omega.
+                pose proof H11 _ hn1gt0 H7 H1 H9.
+                assert (n1-k>0) as hn1kgt0 by omega.
+                destruct (I2D_Q _ _ _ hn1kgt0 H12) as [m22 [? ?]].
                 exists m22.
-                split;[exact H14|].
+                split;[exact H13|].
                 assert (f m11 m22 k n).
                 { pose proof Func_NDI f m1 m2 m11 m22 k n.
-                  apply H16.
-                  - apply feM_mono with n1;[omega|]. apply feM_EQ, H5.
-                  - apply feM_mono with (n1-k);[omega|exact H14].
-                  - exact H7.
+                  apply H15.
+                  - apply feM_mono with n1;[omega|]. apply feM_EQ, H3.
+                  - apply feM_mono with (n1-k);[omega|exact H13].
+                  - exact H10.
                 }
                 intros.
                 split; intro;
                   [apply Func_downwards_closed with n;[assumption|omega]|].
-                split;[exact H16|].
-                intros. apply N2I_Q, H15.
-              * destruct (classic (index_denote_aux i P m11 n)).
-                -- assert (exists n0,
-                              n0>=n /\
-                              n0<n1 /\
-                              index_denote_aux i P m11 n0 /\
-                              ~ index_denote_aux i P m11 (S n0)).
-                   { destruct (classic (exists n0 : nat,
-                                           n0 >= n /\
-                                           n0 < n1 /\
-                                           index_denote_aux i P m11 n0 /\
-                                           ~ index_denote_aux i P m11 (S n0)));
-                       [assumption|]. apply False_ind. apply H9.
-                     pose proof not_ex_all_not nat _ H11.
-                     assert (forall n0, n0>=n -> n0<n1 -> index_denote_aux i P m11 n0 ->
-                                        index_denote_aux i P m11 (S n0)).
-                     { intros.
-                       specialize H12 with n0.
-                       simpl in H12.
-                       destruct (classic (index_denote_aux i P m11 (S n0)));[assumption|].
-                       apply False_ind. apply H12.
-                       split;[assumption|split;[assumption|split;assumption]].
-                     }
-                     assert (forall n0:nat, n0>=n -> n0<=n1 -> index_denote_aux i P m11 n0).
-                     { intro. remember (n0-n) as dn. intros.
-                       replace n0 with (dn+n) in * by omega.
-                       induction dn.
-                       - replace (0+n) with n by omega. exact H10.
-                       - replace (S dn + n) with (S (dn+n)) by omega.
-                         apply H13.
-                         + omega.
-                         + omega.
-                         + apply IHdn; omega.
-                     }
-                     apply H14;omega.
-                   }
-                   destruct H11 as [n0 [? [? [? ?]]]].
-                   exists m2.
-                   split;[apply feM_EQ|].
-                   assert (f m11 m2 k n).
-                   { apply (Func_NDI f m1 m2 m11 m2 k n).
-                     - apply feM_mono with n1;[omega|exact H5].
-                     - apply feM_EQ.
-                     - exact H7.
-                   }
-                   intros.
-                   split; intro;
-                     [apply Func_downwards_closed with n;[exact H15|omega]|].
-                   split;[exact H15|].
-                   intros.
-                   destruct (n''<=?n0) eqn:hn''.
-                   ++ apply Nat.leb_le in hn''.
-                      apply H8.
-                      ** omega.
-                      ** assumption.
-                      ** destruct (index_denote_inner_NE i P) as [_ ?].
-                         apply H20 with m11;[|exact H19]. apply feM_EQ, feM_mono with n1, H5.
-                         omega.
-                   ++ apply Nat.leb_gt in hn''.
-                      apply False_ind, H14.
-                      destruct (index_denote_inner_NE i P) as [? _].
-                      apply H20 with n'';[exact H19|].
-                      omega.
-                -- exists m2.
-                   split;[apply feM_EQ|].
-                   intros.
-                   assert (f m11 m2 k n).
-                   { apply (Func_NDI f m1 m2 m11 m2 k n).
-                     - apply feM_mono with n1;[omega|exact H5].
-                     - apply feM_EQ.
-                     - exact H7.
-                   }
-                   split; intro;
-                     [apply Func_downwards_closed with n;[exact H11|omega]|].
-                   split;[exact H11|].
-                   intros.
-                   destruct (n''<=?n) eqn:hn''.
-                   ++ apply Nat.leb_le in hn''.
-                      destruct (H0 n'' hn'') as [f'' [? ?]].
-                      rewrite H16 in H2; inversion H2; subst.
-                      apply (H17 _ _ _ H14 H15).
-                      apply Func_downwards_closed with n;[exact H11|omega].
-                   ++ apply Nat.leb_gt in hn''.
-                      apply False_ind, H10.
-                      destruct (index_denote_inner_NE i P) as [? _].
-                      apply (H16 _ _ _ H15). omega.*) admit.
-        }*)
-        remember (fun m1 m2 k n' =>
-                    (n'<=n -> f m1 m2 k n') /\
-                    (n'>n -> f m1 m2 k n /\
-                             forall n'', n''<=n' -> k<=n'' ->
-                                         (forall r: actual_interp,
-                                             index_denote_aux (interp_update_p i v r) P m1 n'') ->
-                                         (forall r: actual_interp,
-                                             index_denote_aux (interp_update_p i v r) Q m2 (n''-k))
-                    )
-                 ) as f'.
-        assert (is_func f') as is_func_f'.
-        { intros m1 m2 m1' m2' k n1 n2. split;[|split;[|split]]; rewrite Heqf'; intros.
-          - split; intros; destruct H6.
-            + split; intro.
-              * apply (Func_NDI f m1 m2 m1' m2' k n1); try assumption. apply H6, H8.
-              * destruct (H7 H8).
-                split.
-                -- apply (Func_NDI f m1 m2 m1' m2' k n).
-                   ++ apply feM_mono with n1;[omega|exact H2].
-                   ++ apply feM_mono with (n1-k);[omega|exact H5].
-                   ++ exact H9.
-                -- intros.
-                   destruct (index_denote_inner_NE (interp_update_p i v r) Q) as [_ ?].
-                   apply H14 with m2;[apply feM_mono with (n1-k);[omega|exact H5]|].
-                   apply (H10 n'' H11 H12).
-                   intros. specialize H13 with r0.
-                   destruct (index_denote_inner_NE (interp_update_p i v r0) P) as [_ ?].
-                   apply H15 with m1';[|exact H13].
-                   apply feM_EQ, feM_mono with n1;[omega|exact H2].
-            + split; intro.
-              * apply feM_EQ in H2. apply feM_EQ in H5.
-                apply (Func_NDI f m1' m2' m1 m2 k n1); try assumption. apply H6, H8.
-              * destruct (H7 H8).
-                split.
-                -- apply (Func_NDI f m1' m2' m1 m2 k n).
-                   ++ apply feM_mono with n1;[omega|apply feM_EQ;exact H2].
-                   ++ apply feM_mono with (n1-k);[omega|apply feM_EQ;exact H5].
-                   ++ exact H9.
-                -- intros.
-                   destruct (index_denote_inner_NE (interp_update_p i v r) Q) as [_ ?].
-                   apply H14 with m2';[apply feM_mono with (n1-k);[omega|apply feM_EQ;exact H5]|].
-                   apply (H10 n'' H11 H12).
-                   intros. specialize H13 with r0.
-                   destruct (index_denote_inner_NE (interp_update_p i v r0) P) as [_ ?].
-                   apply H15 with m1;[|exact H13].
-                   apply feM_EQ, feM_mono with n1;[omega|apply feM_EQ;exact H2].
-          -
-          -
-          -
+                split;[exact H15|].
+                intros. apply N2I_Q;[|omega].
+                destruct (lg n1 n'' hn1gt0 H17 m11 i tt t) as [? _].
+                pose proof H21 H6 H20. subst.
+                exact H14.
+              * exists m2.
+                split;[apply feM_EQ|].
+                intros.
+                split; intro.
+                -- apply Func_downwards_closed with n;[|exact H7].
+                   assert (n1>=n) by omega.
+                   pose proof feM_mono n1 n m1 m11 H8 H3.
+                   apply (Func_NDI f m1 m2 m11 m2 k n H9);[apply feM_EQ|].
+                   destruct (H5 hn) as [? _]. exact H10.
+                -- split.
+                   ++ assert (n1>=n) by omega.
+                      pose proof feM_mono n1 n m1 m11 H8 H3.
+                      apply (Func_NDI f m1 m2 m11 m2 k n H9);[apply feM_EQ|].
+                      destruct (H5 hn) as [? _]. exact H10.
+                   ++ intros.
+                      destruct (n''<=?n1) eqn:hn''.
+                      ** apply Nat.leb_le in hn''.
+                         clear H5; destruct (H2 t) as [_ ?]; destruct (H5 hn).
+                         apply (H13 n'' H8 hn'' H10).
+                         pose proof feM_mono n1 n'' m1 m11 hn'' H3.
+                         destruct (index_denote_inner_NE (interp_update i v t) P) as [_ ?].
+                         apply feM_EQ in H14.
+                         apply (H15 _ _ _ H14 H11).
+                      ** apply Nat.leb_gt in hn''.
+                         apply False_ind, H6.
+                         exists t.
+                         destruct (index_denote_inner_NE (interp_update i v t) P) as [? _].
+                         apply (H12 m11 n'' n1 H11). omega.            
         }
+        
         exists (i2 (m_update (i1 m) (denote_term i p) (Some (inr f')))).
         split.
         -- apply feM_imply_EQ.
@@ -1903,14 +1615,14 @@ Module Type FOO.
            destruct (beq_nat (denote_term i p) x) eqn:hx.
            ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
               right. right. exists f, f'.
-              apply beq_nat_true in hx. rewrite hp in H3.
-              split;[rewrite<-hx;exact H3|split;[reflexivity|]].
+              apply beq_nat_true in hx.
+              split;[rewrite<-hx;exact H4|split;[reflexivity|]].
               intros m1 m2 k Hkn. split; intros.
               ** rewrite Heqf'.
-                 split;intros;[exact H2|].
-                 apply False_ind. apply (gt_irrefl n). exact H5. 
-              ** rewrite Heqf' in H2.
-                 destruct (H2 (Prop_Part i v)). apply H5. omega.
+                 split;intros;[exact H6|].
+                 apply False_ind. apply (gt_irrefl n). exact H7. 
+              ** rewrite Heqf' in H6.
+                 destruct (H6 p). apply H7. omega.
            ++ rewrite i1_i2. unfold m_update. rewrite hx. simpl.
               destruct (i1 m x) eqn:hx';[|left;split;reflexivity].
               right. destruct s;[left;exists n0;split;reflexivity|].
@@ -1920,69 +1632,71 @@ Module Type FOO.
         -- rewrite i1_i2. unfold m_update. intros. rewrite <- beq_nat_refl.
            split.
            ++ intros.
-              pose proof H r.
-              apply Nat.eqb_neq in H2.
+              pose proof H p.
+              apply Nat.eqb_neq in H6.
               replace (denote_term i p =? l') with (l' =? denote_term i p) by apply Nat.eqb_sym.
-              rewrite (hp r) in H2.
-              rewrite H2.
+              rewrite H6.
               apply H0, Nat.eqb_neq.
-              rewrite hp.
-              exact H2.
+              exact H6.
            ++ exists f'. split;[reflexivity|]. intros.
-              rewrite Heqf' in H5.
+              rewrite Heqf' in H7.
               apply I2N_Q.
               intros.
-              specialize (H5 (n0+k) r). destruct H5.
+              specialize (H7 (n0+k) t). destruct H7.
               destruct (n0 + k <=? n) eqn: hn.
               ** apply Nat.leb_le in hn.
-                 pose proof H5 hn.
-                 assert (k<=n0+k) by omega.
+                 pose proof H7 hn.
+                 assert (k<n0+k) by omega.
                  clear H0 H1.
-                 destruct (H r).
+                 destruct (H t).
                  destruct (H1 (n0+k) hn) as [f'' [? ?]].
-                 rewrite hp in *. rewrite H9 in H3. inversion H3; subst.
-                 replace n0 with (n0+k-k) by omega. apply (H10 m1 m2 k H8); [|exact H7].
-                 apply N2I_P. exact H2.
+                 rewrite H12 in H4. inversion H4; subst.
+                 replace n0 with (n0+k-k) by omega. apply (H13 m1 m2 k H11); [|exact H10].
+                 apply N2I_P; [exact H6|omega].
               ** apply Nat.leb_gt in hn.
-                 assert (n0+k>n) by omega.
-                 destruct (H6 H7).
-                 replace n0 with (n0+k-k) by omega. apply H9; try omega.
-                 apply N2I_P. exact H2.
+                 destruct (H9 hn).
+                 replace n0 with (n0+k-k) by omega. apply H11; try omega.
+                 apply N2I_P; [exact H6|omega].
     Qed.
     Theorem I2N_MapstoF_forall: forall p v, DeriveI2N (MapstoF_forall p v P Q).
     Proof.
       intros p v m i H r.
       simpl in *.
-      destruct (i1 m (denote_term (interp_update_p i v r) p)) eqn:h.
+      destruct (i1 m (denote_term i p)) eqn:h.
       + destruct s.
-        - specialize (H 1). simpl in H. split;[destruct (H r) as [? _];exact H0|destruct (H r) as [_ ?]].
+        - assert (1>0) by omega.
+          apply H in H0. clear H. remember H0 as H. clear HeqH H0.
+          simpl in H. split;[destruct (H r) as [? _];exact H0|destruct (H r) as [_ ?]].
           specialize H0 with 0. assert (0<=0) by omega. apply H0 in H1. destruct H1 as [f [? ?]].
-          rewrite h in H1. inversion H1.
-        - split;[specialize H with 1;destruct (H r) as [? _];exact H0|].
-          exists f.
-          split;[reflexivity|].
-          intros.
-          apply I2N_Q.
-          intros.
-          specialize (H (S (n+k))).
-          simpl in H. destruct (H r) as [_ ?].
-          specialize H2 with (n+k).
-          assert (n+k<=(n+k)) by omega.
-          apply H2 in H3.
-          destruct H3 as [? [? ?]].
-          inversion H3; subst.
-          pose proof (H4 m1 m2 k).
-          assert (k<=n+k) by omega.
-          apply H5 in H7.
-          * replace (n+k-k) with n in H7 by omega. exact H7.
-          * apply N2I_P. exact H0.
-          * rewrite h in H3. inversion H3. subst. apply H1.
-      + specialize (H 1).
-        assert (0<=0) by omega.
-        split;[destruct (H r) as [? _];exact H1|destruct (H r) as [_ ?]].
+          inversion H1.
+        - split.
+          * assert (1>0) by omega. apply H in H0.
+            destruct (H0 p) as [? _].
+            exact H1.
+          * exists f.
+            split;[reflexivity|].
+            intros.
+            apply I2N_Q.
+            intros.
+            assert (S (n+k)>0) by omega.
+            apply H in H3. clear H. remember H3 as H. clear HeqH H3.
+            simpl in H. destruct (H r) as [_ ?].
+            assert (n+k<=(n+k)) by omega.
+            apply H3 in H4.
+            destruct H4 as [? [? ?]].
+            inversion H4; subst.
+            assert (k<n+k) by omega.
+            pose proof (H5 m1 m2 k H6).
+            apply N2I_P in H0.
+            assert (n+k>0) by omega. apply H0 in H8. specialize H1 with (n+k).
+            pose proof H5 _ _ _ H6 H8 H1.
+            replace (n+k-k) with n in H9 by omega. exact H9.
+      + assert (1>0) by omega.
+        apply H in H0.
+        split;[destruct (H0 r) as [? _];exact H1|destruct (H0 r) as [_ ?]].
+        clear H0. assert (0<=0) by omega.
         apply H1 in H0.
         destruct H0 as [f [? ?]].
-        rewrite h in H0.
         inversion H0.
     Qed.
     Theorem D2I_MapstoF_forall: forall p v, DeriveD2I (MapstoF_forall p v P Q).
@@ -1991,834 +1705,7 @@ Module Type FOO.
     Proof. intros. apply DeriveD2N_only_way;[apply D2I_MapstoF_forall|apply I2N_MapstoF_forall]. Qed.
 
   End fully_equal.
-  (*Program Definition mapsto_index_assertion_forall (x:nat) (P Q: assertion): assertion :=
-    fun m n => (forall n0,n0<=n->(exists f, i1 m x = inr f /\ (forall m1 m2 k, k<=n0 -> P m1 n0 -> (forall n', Func_Construct f m1 m2 k n') -> Q m2 (n0-k)))).
-  Next Obligation.
-    unfold inner_NE; split; intros.
-    - assert (n0<=n1) by omega.
-      pose proof H n0 H2.
-      destruct H3 as [f [? ?]].
-      exists f.
-      split;[exact H3|exact H4].
-    - pose proof H0 n0 H1.
-      pose proof feM_imply_Func_EQ m1 m2 n H x.
-      destruct H3.
-      + destruct H2 as [f [? ?]]. destruct H3 as [l [? ?]].
-        rewrite H2 in H3. inversion H3.
-      + destruct H2 as [f [? ?]].
-        destruct H3 as [f1 [f2 [? [? ?]]]].
-        rewrite H2 in H3. inversion H3. subst. clear H3.
-        exists f2.
-        split;[exact H5|].
-        intros.
-        apply (Func_EQ_downwards_closed n n0 (Func_Construct f1) (Func_Construct f2)) in H6;[|omega].
-        pose proof H6 m0 m3 k H3.
-        assert (Func_Construct f1 m0 m3 k (n0-k)).
-        { apply H9. apply H8. }
-        assert (exists m0', feM n0 m0 m0'). { exists m0. apply feM_EQ. }
-        destruct H11 as [m0' ?].
-        pose proof Func_Property (Func_Construct f1) m0 m3 k (n0-k) H10 m0'.
-        replace (n0 - k + k) with n0 in H12 by omega.
-        pose proof H11.
-        apply H12 in H11.
-        destruct H11 as [m3' [? ?]].
-        pose proof H4 m0' m3' k H3.
-        assert (P m0' n0). { apply (assertion_n_equiv P m0 m0' n0);assumption. }
-        apply H15 in H16;[|exact H14].
-        apply (assertion_n_equiv Q m3' m3 (n0-k));[|exact H16].
-        apply feM_EQ. exact H11.
-  Qed. *)     
-        
-  
-  (*Theorem mapsto_index_forall_lim_eq_mapsto: forall x (P Q: assertion) (P' Q': M->Prop) m,
-      (forall m', P' m' <-> (forall n, P m' n)) ->
-      (forall m', Q' m' <-> (forall n, Q m' n)) ->
-      (forall n, mapsto_index_assertion_forall x P Q m n) <-> (mapsto x P' Q' m).
-  Proof.
-    intros. unfold mapsto_index_assertion_forall, mapsto.
-    simpl.
-    split.
-    - intros. destruct (i1 m x) eqn:h.
-      + specialize (H1 0 0). assert (0<=0) by omega. apply H1 in H2.
-        destruct H2 as [? [? ?]]. inversion H2.
-      + exists r.
-        split;[reflexivity|].
-        intros.
-        apply H0.
-        intros.
-        specialize (H1 (n+k) (n+k)).
-        assert (n+k<=n+k) by omega.
-        apply H1 in H4.
-        destruct H4 as [? [? ?]].
-        inversion H4; subst.
-        pose proof H5 m1 m2 k.
-        assert (k<=n+k) by omega.
-        apply H6 in H7.
-        * replace (n+k-k) with n in H7 by omega. exact H7.
-        * apply H. exact H2.
-        * exact H3.
-    - intros. destruct H1 as [f [? ?]].
-      exists f.
-      split;[exact H1|].
-      intros.
-      assert (P m1 n0 -> exists m1', feM n0 m1 m1' /\ P' m1'). { admit. }
-      apply H7 in H5.
-      destruct H5 as [m1' [? ?]].
-      pose proof Func_NDI (Func_Construct f) m1 m2 m1' m2 k n0.
-      apply H9 in H5;[|apply feM_EQ].
-      apply H5 in H6.
-      pose proof Func_Property _ _ _ _ _ H6 m1'.
-      assert (feM (n0+k) m1' m1') by apply feM_EQ.
-      apply H10 in H11.
-      destruct H11 as [m2' [? ?]].
-      pose proof H3 m1' m2' k H8 H12.
-      pose proof assertion_n_equiv Q m2' m2.
-      apply H14.
-      + pose proof feM_mono n0 (n0-k) m2' m2.
-        assert (n0>=n0-k) by omega. apply H15 in H16;[exact H16|]. apply feM_EQ. exact H11.
-      + apply H0. exact H13.
-  Admitted. *)
 
-  
-  (*Theorem mapsto_index_n_imply_diam: forall x (P Q: assertion) (P' Q': M->Prop) m n,
-      mapsto_index_assertion_n x P Q m n -> diam n (mapsto x P' Q') m.
-  Proof.
-    unfold mapsto_index_assertion_n, diam, mapsto.
-    intros.
-    simpl in H.
-    admit.
-  Admitted.
-
-  Theorem mapsto_index_n_lim_eq_mapsto: forall x (P Q: assertion) (P' Q': M->Prop) m,
-      (forall m', P' m' <-> (forall n, P m' n)) ->
-      (forall m', Q' m' <-> (forall n, Q m' n)) ->
-      (forall n, mapsto_index_assertion_n x P Q m n) <-> (mapsto x P' Q' m).
-  Proof.
-    intros. unfold mapsto_index_assertion_n, mapsto. simpl. split.
-    - intros. destruct (i1 m x) eqn:h.
-      + specialize (H1 1 0). assert (0<1) by omega. apply H1 in H2.
-        destruct H2 as [? [? ?]]. inversion H2.
-      + exists r. split;[reflexivity|].
-        intros.
-        apply H0. intros.
-        specialize (H1 (S (n+k)) (n+k)).
-        assert (n + k < S (n + k)) by omega.
-        apply H1 in H4.
-        destruct H4 as [? [? ?]].
-        inversion H4; subst.
-        pose proof (H5 m1 m2 k).
-        assert (k<=n+k) by omega. apply H6 in H7.
-        * replace (n+k-k) with n in H7 by omega. exact H7.
-        * apply H. exact H2.
-        * apply H3.
-    - intros. destruct H1 as [f [? ?]].
-      exists f. split;[exact H1|].
-      intros.
-      assert (P m1 n0 -> exists m1', feM n0 m1 m1' /\ P' m1'). { admit. }
-      apply H7 in H5.
-      destruct H5 as [m1' [? ?]].
-      pose proof Func_Property (Func_Construct f) m1 m2 k n0 H4 H6 m1' H5.
-      destruct H9 as [m2' [? ?]].
-      pose proof H3 m1' m2' k H8 H10.
-      apply (assertion_n_equiv Q m2' m2 (n0-k)).
-      + apply feM_EQ. exact H9.
-      + apply H0. exact H11.
-  Admitted.
-
-  
-
-
-  (* This part proves that all props in Omega_0 satisfies (forall m0 n, P m0 n -> exists m', non_diff n m0 m' /\ P' m') and (forall m', P' m' <-> (forall n, P m' n)). *)
-
-  (* For the base case, (P' = fun m => i1 m x = inl n) and (P = (fun m _ => i1 m x = inl n)) for some x and n. *)
-  Theorem mapsto_value_eq: forall x n,
-      (forall (m:M) (n':nat), (fun m _ => i1 m x = inl n) m n' -> exists m', feM n m m' /\ (fun m => i1 m x = inl n) m')  /\ (forall (m:M), (fun m => i1 m x = inl n) m <-> (forall (n':nat), (fun m _ => i1 m x = inl n) m n')).
-  Proof.
-    split;intros.
-    - exists m. split;[apply feM_EQ|exact H].
-    - split; intros; auto.
-  Qed.
-  (* For the and case, R' = fun m => P' m /\ Q' m, R = fun m n => P m n /\ Q m n. *)
-  Theorem and_eq: forall (P Q:M->nat->Prop) (P' Q':M->Prop),
-      (forall m n, P m n <-> diam n P' m) ->
-      (forall m, P' m <-> (forall n, P m n)) ->
-      (forall m, P' m <-> (forall n, diam n P' m)) ->
-      (forall m n, Q m n <-> diam n Q' m) ->
-      (forall m, Q' m <-> (forall n, Q m n)) ->
-      (forall m, Q' m <-> (forall n, diam n Q' m)) ->
-      (forall m n, P m n /\ Q m n <-> diam n (fun m => P' m /\ Q' m) m) /\
-      (forall m, P' m /\ Q' m <-> (forall n, P m n /\ Q m n)) /\
-      (forall m, P' m /\ Q' m <-> (forall n, diam n (fun m => P' m /\ Q' m) m)).
-  Proof.
-    intros. split;[|split].
-    - intros. split; intros; destruct H5.
-      + admit.
-    (* split;[apply H;exact H5|apply H2;exact H6|apply H;exact H5|apply H2;exact H6]. *)
-      + destruct H5 as [? [? ?]].
-        split;[apply H|apply H2];exists x;auto.
-    - intros. split; intros.
-      + destruct H5; split;[apply H0;exact H5|apply H3;exact H6].
-      + assert ((forall n:nat, P m n) /\ forall n:nat, Q m n).
-        { split; intros; specialize (H5 n);destruct H5;[exact H5|exact H6]. }
-        destruct H6; split;[apply H0;exact H6|apply H3;exact H7].
-    - intros. split; intros.
-      + exists m. destruct H5. split;[apply feM_EQ|split;[exact H5|exact H6]].
-      + assert ((forall n:nat, diam n P' m) /\ (forall n:nat, diam n Q' m)).
-        { split; intros; specialize (H5 n);destruct H5 as [m' [? [? ?]]];exists m';auto. }
-        destruct H6; split;[apply H1;exact H6|apply H4;exact H7].
-  Abort.
-  (* Fail to induction on "and". *)
-if P m n holds for some P with level less than or equal to n then P m holds?
-  (* Failed for exists property! *)
-  (* For the sep-com case, R' = fun m => P' m * Q' m, R = fun m n => P m n * Q m n. *)
-  (* Difficulty in limit equality (forall step-indexed -> non-step-indexed). *)
-  (* For the or case, R' = fun m => P' m \/ Q' m, R = fun m n => P m n \/ Q m n. *)
-  Theorem or_eq: forall (P Q:M->nat->Prop) (P' Q':M->Prop),
-      (forall m0 n, P m0 n -> exists m', non_diff n m0 m' /\ P' m') ->
-      (forall m', P' m' <-> (forall n, P m' n)) ->
-      (forall m0 n, Q m0 n -> exists m', non_diff n m0 m' /\ Q' m') ->
-      (forall m', Q' m' <-> (forall n, Q m' n)) ->
-      (forall m0 n, (fun m n => P m n \/ Q m n) m0 n -> exists m', non_diff n m0 m' /\ (fun m => P' m \/ Q' m) m') /\
-      (forall m', (fun m => P' m \/ Q' m) m' <-> (forall n, (fun m n => P m n \/ Q m n) m' n)).
-  Proof.
-    intros. split; intros.
-    - destruct H3.
-      + apply H in H3.
-        destruct H3 as [m' [? ?]].
-        exists m'.
-        split;[exact H3|].
-        left; exact H4.
-      + apply H1 in H3.
-        destruct H3 as [m' [? ?]].
-        exists m'.
-        split;[exact H3|].
-        right; exact H4.
-    - split; intros.
-      + destruct H3.
-        * left.
-          apply H0. exact H3.
-        * right.
-          apply H2. exact H3.
-      + assert ((forall n, P m' n) \/ (forall n, Q m' n)).
-        { admit. (* Need P Q downwards closed, as well as H3. *) }
-        destruct H4.
-        * left. apply H0. exact H4.
-        * right. apply H2. exact H4.
-  Admitted.
-  (* For the mapsto case, R' = mapsto_index x P Q, R = mapsto x P' Q'. *)
-  Theorem mapsto_func_eq: forall (P Q:M->nat->Prop) (P' Q':M->Prop) x,
-      (forall m0 n, P m0 n -> exists m', non_diff n m0 m' /\ P' m') ->
-      (forall m', P' m' <-> (forall n, P m' n)) ->
-      (forall m0 n, Q m0 n -> exists m', non_diff n m0 m' /\ Q' m') ->
-      (forall m', Q' m' <-> (forall n, Q m' n)) ->
-      (forall m, (forall n, mapsto_index x P Q m n) <-> (mapsto x P' Q' m)) /\
-      (forall m n, mapsto_index x P Q m n -> exists m', non_diff n m m' /\ mapsto x P' Q' m').
-  Proof.
-    intros.
-    split;intros.
-    - pose proof mapsto_index_lim_eq_mapsto x P Q P' Q' m.
-      apply H3;assumption.
-    - unfold mapsto_index in H3.
-      destruct H3 as [f [? ?]].
-      unfold mapsto.
-  Abort.
-    
-  Theorem mapsto_index_eq_diam_mapsto: forall m n P Q,
-      (forall m' n', P m' n' <-> diam n' (fun m => forall n, P m n) m') ->
-      (forall m' n', Q m' n' <-> diam n' (fun m => forall n, Q m n) m') ->
-      forall x, mapsto_index x P Q m n <-> diam n (mapsto x (fun m => forall n, P m n) (fun m => forall n, Q m n)) m.
-  Proof.
-    unfold mapsto_index, mapsto. intros. split; intros.
-    - destruct H1 as [f [? ?]]. 
-      admit.
-    - destruct H1 as [m' [? ?]].
-      destruct H2 as [f [? ?]].
-      pose proof (feM_imply_Func_EQ m m' n H1 x).
-      destruct H4.
-      + destruct H4 as [l [? ?]].
-        rewrite H2 in H5. inversion H5.
-      + destruct H4 as [f1 [f2 [? [? ?]]]].
-        rewrite H2 in H5. inversion H5. subst. clear H5.
-        exists f1.
-        split;[exact H4|].
-        intros.
-        assert (Func_Construct f2 m1 m2 k (n-k)).
-        { apply H6;[exact H5|apply H8]. }
-        apply H in H7.
-        destruct H7 as [m1' [? ?]].
-        pose proof (Func_Property _ _ _ _ _ H9 m1').
-        replace (n-k+k) with n in H11 by omega.
-        apply H11 in H7.
-        destruct H7 as [m2' [? ?]].
-        apply H0.
-        exists m2'.
-        split;[exact H7|].
-        apply (H3 m1' m2' k); assumption.
-  Admitted.
-
-  Theorem mapsto_index_all_eq_mapsto: forall x (P Q: M->nat->Prop) m,
-      (forall m' n', P m' n' <-> diam n' (fun m => forall n, P m n) m') ->
-      (forall m' n', Q m' n' <-> diam n' (fun m => forall n, Q m n) m') ->
-      (exists f, i1 m x = inr f) ->
-      mapsto x (fun m => forall n, P m n) (fun m => forall n, Q m n) m <-> forall n, mapsto_index x P Q m n.
-  Proof.
-    intros; unfold mapsto, mapsto_index; split; intros.
-    - clear H1.
-      destruct H2 as [f [? ?]].
-      exists f.
-      split; [exact H1|].
-      intros.
-      apply H in H4.
-      destruct H4 as [m1' [? ?]].
-      pose proof Func_Property (Func_Construct f) m1 m2 k (n-k).
-      specialize H5 with (n-k).
-      pose proof H7 H5 m1'. clear H5 H7.
-      replace (n-k+k) with n in H8 by omega.
-      apply H8 in H4. clear H8.
-      destruct H4 as [m2' [? ?]].
-      apply H0.
-      exists m2'.
-      split;[exact H4|].
-      apply (H2 m1' m2' k); assumption.
-    - destruct H1 as [f ?].
-      exists f.
-      split;[exact H1|].
-      intros.
-      specialize H2 with (n+k).
-      destruct H2 as [f' [? ?]].
-      rewrite H1 in H2. inversion H2. subst.
-      specialize (H5 m1 m2 k).
-      assert (k<=n+k) by omega.
-      apply H5 in H6.
-      + replace (n+k-k) with n in H6 by omega.
-        exact H6.
-      + apply H3.
-      + exact H4.
-   Qed.
-
-   Theorem diam_mapsto_imply_mapsto_index_exists: forall m n Q,
-      (forall m' n', Q m' n' <-> diam n' (fun m => forall n, Q m n) m') ->
-      forall x, (exists f, i1 m x = inr f)->(exists (P:M->nat->Prop),  (forall m' n', P m' n' <-> diam n' (fun m => forall n, P m n) m') /\ diam n (mapsto x (fun m => forall n, P m n) (fun m => forall n, Q m n)) m) -> (exists P, mapsto_index x P Q m n).
-   Proof.
-     unfold mapsto, mapsto_index; intros.
-     destruct H1 as [P [? ?]].
-     destruct H2 as [m' [? ?]].
-     destruct H3 as [f [? ?]].
-     exists P.
-     destruct H0 as [f' ?].
-     exists f'.
-     split;[exact H0|].
-     intros.
-     pose proof (feM_imply_Func_EQ m m' n H2 x). clear H2.
-     destruct H8.
-     - destruct H2 as [l [? ?]].
-       rewrite H0 in H2. inversion H2.
-     - destruct H2 as [f1 [f2 [? [? ?]]]].
-       rewrite H0 in H2. rewrite H3 in H8.
-       inversion H2. inversion H8. subst. clear H0 H3 H2 H8.
-       assert (Func_Construct f2 m1 m2 k (n-k)).
-       { apply H9;[exact H5|apply H7]. }
-       pose proof Func_Property (Func_Construct f2) m1 m2 k (n-k) H0.
-       apply H1 in H6.
-       destruct H6 as [m1' [? ?]].
-       specialize H2 with m1'.
-       replace (n-k+k) with n in H2 by omega.
-       apply H2 in H3.
-       destruct H3 as [m2' [? ?]].
-       apply H.
-       exists m2'.
-       split;[exact H3|].
-       apply (H4 m1' m2' k);assumption.
-   Qed.
-
-   Theorem mapsto_imply_mapsto_index_all_exists: forall m Q,
-      (forall m' n', Q m' n' <-> diam n' (fun m => forall n, Q m n) m') ->
-      forall x, (exists f, i1 m x = inr f)->(exists (P:M->nat->Prop),  (forall m' n', P m' n' <-> diam n' (fun m => forall n, P m n) m') /\ (mapsto x (fun m => forall n, P m n) (fun m => forall n, Q m n)) m) -> (exists P, forall n, mapsto_index x P Q m n).
-   Proof.
-     unfold mapsto, mapsto_index.
-     intros.
-     destruct H0 as [f ?].
-     destruct H1 as [P [? ?]].
-     destruct H2 as [f' [? ?]].
-     rewrite H0 in H2. inversion H2. subst.
-     clear H2.
-     exists P. intros.
-     exists f'.
-     split;[exact H0|].
-     intros.
-     apply H1 in H4.
-     destruct H4 as [m1' [? ?]].
-     specialize H5 with (n-k).
-     pose proof Func_Property (Func_Construct f') m1 m2 k (n-k) H5 m1'.
-     replace (n-k+k) with n in H7 by omega.
-     apply H7 in H4.
-     destruct H4 as [m2' [? ?]].
-     apply H.
-     exists m2'.
-     split;[exact H4|].
-     apply (H3 m1' m2' k);assumption.
-   Qed.
-
-   Theorem mapsto_index_all_imply_mapsto_exists: forall m Q,
-      (forall m' n', Q m' n' <-> diam n' (fun m => forall n, Q m n) m') ->
-      forall x, (exists f, i1 m x = inr f) -> (exists (P:M->nat->Prop),  (forall m' n', P m' n' <-> diam n' (fun m => forall n, P m n) m') /\ (forall n, mapsto_index x P Q m n)) -> exists (P:M->nat->Prop), mapsto x (fun m => forall n, P m n) (fun m => forall n, Q m n) m.
-   Proof.
-     unfold mapsto, mapsto_index.
-     intros.
-     destruct H1 as [P [? ?]].
-     destruct H0 as [f ?].
-     exists P. exists f.
-     split;[exact H0|].
-     intros.
-     specialize H2 with (n+k).
-     destruct H2 as [f' [? ?]].
-     rewrite H2 in H0.
-     inversion H0; subst; clear H0.
-     specialize (H5 m1 m2 k).
-     replace (n+k-k) with n in H5 by omega.
-     apply H5.
-     - omega.
-     - apply H3.
-     - exact H4.
-   Qed.
-
-   
-  
-  (*Definition Func : Type := M -> M -> nat -> Prop.
-
-  Definition direct_conflict (v1 v2:nat+RealFunc) : Prop :=
-    match v1, v2 with
-    | inl _, inr _ => True
-    | inr _, inl _ => True
-    | inl x, inl y => ~ x = y
-    | inr _, inr _ => False
-    end.
-
-  Definition FM: Type := nat -> (nat + RealFunc).
-
-  Parameter i1: M -> FM.
-  Parameter i2: FM -> M.
-  Axiom i1_i2: forall m, i1 (i2 m) = m.
-  Axiom i2_i1: forall m, i2 (i1 m) = m.
-
-
-  Axiom DC_Not_Eq: forall m1 m2, (exists n, direct_conflict (i1 m1 n) (i1 m2 n)) -> ~ feM 1 m1 m2.
-
-  Program Definition miniSet (m:M)(n:nat):assertion:=
-    fun m' n' => feM n m m' \/ n' <= n.
-  Next Obligation.
-    unfold inner_NE. split; intros.
-    - destruct H.
-      + left. exact H.
-      + right. omega.
-    - destruct H0.
-      + destruct (n0<=?n) eqn:h.
-        * apply leb_complete in h.
-          right. exact h.
-        * apply leb_complete_conv in h.
-          left.
-          apply feM_trans with m1; [exact H0|].
-          apply feM_mono with n0; [|exact H].
-          omega.
-      + right. exact H0.
-  Qed.
-  Definition Func_Construct (f:RealFunc):Func:=
-    fun m1 m2 n =>
-      f (miniSet m2 n) m1 n.
-
-  Definition diam (n:nat) (P:M->Prop) (m:M): Prop :=
-    exists m', feM n m m' /\ P m'.
-  Theorem diam_downwards_closed: forall n P m, diam (S n) P m -> diam n P m.
-  Proof.
-    intros.
-    unfold diam in *.
-    destruct H as [m' [? ?]].
-    exists m'.
-    split;[|exact H0].
-    apply feM_mono with (S n);[omega|exact H].
-  Qed.
-  Definition Diam (n:nat) (P:M->Prop) (m:M): Prop :=
-    match n with
-    | 0 => True
-    | S n' => diam n' P m
-    end.
-  
-  Definition closed (Q:M->Prop):Prop := forall m, (exists N, forall n, n>=N -> diam n Q m)-> Q m.
-  Definition open (P:M->Prop):Prop := forall m, P m -> (exists N, forall n, n>=N -> forall m', feM n m m' -> P m').
-  Theorem all_diam: forall P Q,
-    (forall m, diam 0 P m -> diam 0 Q m) ->
-    (forall m n, (diam n P m -> diam n Q m)->(diam (S n) P m -> diam (S n) Q m)) ->
-    closed Q ->
-    (forall m, P m -> Q m).
-  Proof.
-    intros.
-    apply H1.
-    exists 0.
-    induction n; intro.
-    - apply H.
-      exists m.
-      split;[|exact H2].
-      apply feM_EQ.
-    - apply H0.
-      + intro.
-        apply IHn.
-        omega.
-      + exists m.
-        split;[|exact H2].
-        apply feM_EQ.
-  Qed.
-
-(*  Definition describe (f:M->M->nat->Prop)(c:com): Prop :=
-    forall m1 m2 n, f m1 m2 n <-> exists m1' m2', feM n m1' m1 /\ feM n m2 m2' /\ c/m1'\\m2'.
- *)
-  Axiom Func_Property: forall (f:Func), (forall m1 m2 n, f m1 m2 n <-> exists m1' m2',
-                                         feM n m1 m1' /\ feM n m2 m2' /\ forall n', f m1' m2' n').
-  Theorem Func_Downwards_Closed: forall (f:Func), forall m1 m2 n1 n2, n1>=n2 -> f m1 m2 n1 -> f m1 m2 n2.
-  Proof.
-    intros. apply Func_Property.
-    apply Func_Property in H0.
-    destruct H0 as [m1' [m2' [? [? ?]]]].
-    exists m1'. exists m2'.
-    split.
-    - apply feM_mono with n1.
-      exact H. exact H0.
-    - split.
-      + apply feM_mono with n1.
-        exact H. exact H1.
-      + exact H2.
-  Qed.
-  Definition func_n_eq (n:nat)(f1 f2:Func):Prop:=
-    forall m1 m2, f1 m1 m2 n <-> f2 m1 m2 n.
-  Axiom fem_eq_func_eq: forall n m1 m2 x f1 f2, feM (S n) m1 m2 -> i1 m1 x = inr f1 -> i1 m2 x = inr f2 -> func_n_eq n (Func_Construct f1) (Func_Construct f2).
-  (*Definition mapsto (x:nat)(P Q:M->Prop) : M->Prop :=
-    fun m => forall m1 m2, P m1 -> (exists f, i1 m x=inr f /\ forall n, Func_Construct f m1 m2 n) -> Q m2.
-  *)  
-  
-  Definition mapsto_f (f:Func)(P Q:M->Prop): M->Prop :=
-    fun m => forall m1 m2, P m1 -> (forall n, f m1 m2 n) -> Q m2.
-  Definition mapsto_n_f (n:nat)(f:Func)(P Q:M->Prop): M->Prop :=
-    fun m => forall m1 m2, (forall m1', feM n m1 m1'->P m1') -> f m1 m2 n -> (exists m2', feM n m2 m2' /\ Q m2').
-  Theorem mapsto_f_imply: forall f P Q m, mapsto_f f P Q m -> forall n, mapsto_n_f n f P Q m.
-  Proof.
-    intros. unfold mapsto_f, mapsto_n_f in *. intros.
-    apply Func_Property in H1.
-    destruct H1 as [m1' [m2' [? [? ?]]]].
-    exists m2'.
-    split;[exact H2|].
-    apply H with m1';[|exact H3].
-    apply H0. exact H1.
-  Qed.
-  Definition mapsto_n_f' (n:nat)(f:Func)(P Q:M->Prop): M->Prop :=
-    fun m => forall m1 m2, P m1 -> f m1 m2 n -> Q m2.
-  Theorem mapsto_f'_imply: forall f P Q m, (forall n, mapsto_n_f' n f P Q m) -> mapsto_f f P Q m.
-  Proof.
-    unfold mapsto_n_f', mapsto_f. intros.
-    apply (H 0 m1 m2) in H0; [exact H0|apply H1].
-  Qed.
-  Definition mapsto_f_index (f:Func) (P Q: M->Prop): M->nat->Prop :=
-    fun m n => forall m1 m2 n', n'<=n -> diam n' P m1 -> f m1 m2 n' -> diam n' Q m2.
-  Theorem mapsto_f_index_eq_mapsto_n_f'_n: forall f P Q m n,
-      mapsto_f_index f P Q m n <-> forall n', n'<=n -> mapsto_n_f' n' f (diam n' P) (diam n' Q) m.
-  Proof.
-    intros. split; unfold mapsto_n_f', mapsto_f_index in *; intros.
-    - apply (H m1 m2 n'); assumption.
-    - specialize H with n' m1 m2.
-      apply H; assumption.
-  Qed.
-
-  (*Axiom Func_Property_Test: forall (f:Func), (forall m1 m2 n, f m1 m2 n -> forall m1',
-                            feM n m1 m1' -> exists m2', feM n m2 m2' /\ forall n', f m1' m2' n').
-  Theorem mapsto_f_index_close_imply: forall (f:Func) P Q m,
-      (forall n, mapsto_f_index f P Q m n) -> closed Q -> mapsto_f f P Q m.
-  Proof.
-    unfold mapsto_f_index, mapsto_f; intros.
-    apply H0.
-    exists 0. intros.
-    apply H with n m1.
-    - omega.
-    - exists m1. split;[apply feM_EQ|exact H1].
-    - apply H2.
-  Qed.
-  Theorem mapsto_f_imply_index: forall (f:Func) P Q m,
-      mapsto_f f P Q m -> (forall n, mapsto_f_index f P Q m n).
-  Proof.
-    unfold mapsto_f_index, mapsto_f; intros.
-    destruct H1 as [m1' [? ?]].
-    pose proof (Func_Property_Test f m1 m2 n').
-    assert (
-       (forall m1' : M,
-           feM n' m1 m1' -> exists m2' : M, feM n' m2 m2' /\ (forall n' : nat, f m1' m2' n'))).
-    {apply H4. exact H2. }
-    clear H4.
-    apply H5 in H1.
-    destruct H1 as [m2' [? ?]].
-    exists m2'.
-    split;[exact H1|].
-    apply (H m1'); assumption.
-  Qed.
-
-  Theorem mapsto_index_close_imply_f: forall (f:Func) P Q m,
-      (forall m1 m2 n l, diam n P m1 -> l<=n -> (forall m1', feM n m1 m1' -> exists m2', (feM (n-l) m2 m2' /\ (forall (n':nat), f m1' m2' n'))) -> diam (n-l) Q m2) -> closed Q -> mapsto_f f P Q m.
-  Proof.
-    unfold mapsto_f, closed; intros.
-
-  Admitted.
-  Theorem mapsto_f_imply_index: forall (f:Func) P Q m,
-      (mapsto_f f P Q m) -> (forall m1 m2 n l, diam n P m1 -> l<=n -> (forall m1', feM n m1 m1' -> exists m2', (feM (n-l) m2 m2' /\ forall n', f m1' m2' n')) -> diam (n-l) Q m2).
-  Proof.
-    unfold mapsto_f; intros.
-    destruct H0 as [m1' [? ?]].
-    apply H2 in H0.
-    destruct H0 as [m2' [? ?]].
-    exists m2'.
-    split;[exact H0|].
-    apply H with m1'; assumption.
-  Qed.*)
-    
-  Parameter l_origin : Func -> M -> M -> nat.
-  Axiom Func_Call_Times_Property: forall (f: Func) m1 m2, (forall n, f m1 m2 n)->((forall m1' l', feM ((l_origin f m1 m2)+l') m1' m1 -> exists m2', feM l' m2' m2 /\ forall n, f m1' m2' n)).
-
-  Parameter l : Func -> M -> M -> nat -> nat.
-  Axiom l_n_Property: forall (f:Func) m1 m1' m2 m2' n, feM n m1 m1' -> feM n m2 m2' -> (forall n', f m1' m2' n') -> (l_origin f m1' m2' >= n /\ l f m1 m2 n = n) \/ (l_origin f m1' m2' < n /\ l f m1 m2 n = l_origin f m1' m2').
-  Axiom l_f_Property: forall (f f':Func) m1 m2 n, func_n_eq n f f' -> l f m1 m2 n = l f' m1 m2 n.
-  Theorem mapsto_index_close_imply_f: forall (f:Func) P Q m,
-      (forall m1 m2 n, (diam n P m1) -> (f m1 m2 n) -> (Diam (n-(l f m1 m2 n)) Q m2)) -> closed Q -> mapsto_f f P Q m.
-  Proof.
-    intros. unfold mapsto_f. intros.
-    apply H0.
-    exists 0.
-    intros.
-    pose proof (H m1 m2 (n+1+l_origin f m1 m2)).
-    assert (l f m1 m2 (n+1+l_origin f m1 m2) = l_origin f m1 m2).
-    { pose proof l_n_Property f m1 m1 m2 m2 (n+1+l_origin f m1 m2).
-      assert (feM (n+1+l_origin f m1 m2) m1 m1) by apply feM_EQ.
-      apply H5 in H6;[|apply feM_EQ|exact H2].
-      destruct H6.
-      * destruct H6. assert (n+1=0) by omega. rewrite H8 in *. omega.
-      * destruct H6. exact H7.
-    }
-    replace n with (n + l_origin f m1 m2 - l f m1 m2 (n + 1 + l_origin f m1 m2)) by omega.
-    replace (n + 1 + l_origin f m1 m2 - l f m1 m2 (n + 1 + l_origin f m1 m2)) with (S (n + l_origin f m1 m2 - l f m1 m2 (n + 1 + l_origin f m1 m2))) in H4 by omega.
-    apply H4.
-    - exists m1. split;[apply feM_EQ|exact H1].
-    - apply H2.
-  Qed.
-  
-    
-  Theorem mapsto_f_imply_index: forall (f:Func) P Q m,
-      (mapsto_f f P Q m) -> (forall m1 m2 n, (diam n P m1) -> (f m1 m2 n) -> (Diam (n-l f m1 m2 n) Q m2)).
-  Proof.
-    intros. unfold mapsto_f in *.
-    apply Func_Property in H1.
-    destruct H1 as [m1' [m2' [? [? ?]]]].
-    pose proof Func_Call_Times_Property f m1' m2'.
-    destruct H0 as [m1'' [? ?]].
-    assert ((l_origin f m1' m2' >= n /\ l f m1 m2 n = n) \/ (l_origin f m1' m2' < n /\ l f m1 m2 n = l_origin f m1' m2')).
-    { pose proof l_n_Property f m1 m1' m2 m2' n. apply H6 in H1;[|exact H2|exact H3].
-      exact H1.
-    }
-    destruct H6.
-    - destruct H6. rewrite H7 in *.
-      replace (n-n) with 0 by omega.
-      unfold Diam. auto.
-    - destruct H6. rewrite H7 in *.
-      assert ( exists m2'' : M, feM (n-l_origin f m1' m2') m2'' m2' /\ (forall n : nat, f m1'' m2'' n) ).
-      { apply H4. exact H3.
-        apply feM_trans with m1. apply feM_EQ.
-        replace (l_origin f m1' m2' + (n - l_origin f m1' m2')) with (n) by omega.
-        exact H0.
-        replace (l_origin f m1' m2' + (n - l_origin f m1' m2')) with (n) by omega.
-        exact H1.
-      }
-      destruct H8 as [m2'' [? ?]].
-      specialize (H m1'' m2'').
-      apply H in H5;[|exact H9].
-      destruct (n-l_origin f m1' m2')eqn:h.
-      + unfold Diam. auto.
-      + exists m2''.
-        split;[|exact H5].
-        apply feM_trans with m2'.
-        apply feM_mono with (n).
-        omega.
-        exact H2.
-        apply feM_EQ.
-        apply feM_mono with (S n0). omega.
-        exact H8.
-  Qed.
-
-  Theorem mapsto_f_n_imply_index_n: forall (f:Func) P Q m n,
-      (exists f', func_n_eq n f f' /\ mapsto_f f' P Q m) -> (forall m1 m2, (diam n P m1)-> f m1 m2 n -> Diam (n-l f m1 m2 n) Q m2).
-  Proof.
-    intros.
-    destruct H as [f' [? ?]].
-    destruct H0 as [m1' [? ?]].
-    assert (f' m1 m2 n).
-    { apply H. exact H1. }
-    apply Func_Property in H4.
-    destruct H4 as [m1'' [m2'' [? [? ?]]]].
-    assert (feM n m1' m1'').
-    { apply feM_trans with m1;[|exact H4]. apply feM_EQ. exact H0. }
-    pose proof l_n_Property f' m1 m1'' m2 m2'' n.
-    apply H8 in H4; try assumption. clear H8.
-    assert (l f m1 m2 n=l f' m1 m2 n).
-    { apply l_f_Property. exact H. }
-    destruct H4.
-    - destruct H4.
-      rewrite H8. rewrite H9. replace (n-n) with 0 by omega. simpl. auto.
-    - pose proof Func_Call_Times_Property f' m1'' m2''.
-      pose proof (H9 H6 m1' (n-l_origin f' m1'' m2'')). clear H9.
-      destruct H4.
-      replace (l_origin f' m1'' m2'' + (n - l_origin f' m1'' m2'')) with n in H10 by omega.
-      apply H10 in H7. clear H10.
-      destruct H7 as [m2' [? ?]].
-      pose proof H2 m1' m2'.
-      apply H11 in H3;[|exact H10]. clear H11.
-      rewrite H8. rewrite H9.
-      destruct (n-l_origin f' m1'' m2'') eqn:h.
-      + omega.
-      + simpl. exists m2'.
-        split;[|exact H3].
-        apply feM_mono with (S n0);[omega|].
-        apply feM_trans with m2''.
-        * apply feM_mono with n;[omega|exact H5].
-        * apply feM_EQ. exact H7.
-  Qed.
-    
-  Definition mapsto_by_f (x:nat)(P Q:M->Prop): M->Prop:=
-    fun m => exists f, i1 m x = inr f /\ mapsto_f (Func_Construct f) P Q m.
-
-  Definition mapsto (x:nat)(P Q:M->Prop) : M->Prop :=
-    fun m => forall m1 m2,
-        P m1 -> (exists f, i1 m x=inr f /\ forall n, Func_Construct f m1 m2 n) -> Q m2.
-  
-  Theorem mapsto_by_f_imply_mapsto: forall x P Q m,
-      mapsto_by_f x P Q m -> mapsto x P Q m.
-  Proof.
-    unfold mapsto, mapsto_by_f; intros.
-    destruct H as [f [H H']].
-    unfold mapsto_f in H'.
-    destruct H1 as [f' [H1 H2]].
-    rewrite H in H1.
-    inversion H1.
-    rewrite <- H4 in H2. clear H H1 H4.
-    apply H' with m1; assumption.
-  Qed.
-  Theorem mapsto_imply_mapsto_by_f: forall x P Q m,
-      (exists f, i1 m x = inr f) -> mapsto x P Q m -> mapsto_by_f x P Q m.
-  Proof.
-    unfold mapsto, mapsto_by_f; intros.
-    destruct H as [f H].
-    exists f.
-    split;[auto|].
-    unfold mapsto_f; intros.
-    apply H0 with m1;[exact H1|].
-    exists f.
-    split;[auto|exact H2].
-  Qed.
-  
-  Theorem diam_mapsto_close: forall x P Q,
-     open P -> closed Q -> closed (mapsto x P Q).
-  Proof.
-    unfold open, closed, mapsto, diam; intros.
-    specialize H with m1.
-    specialize H0 with m2.
-    apply H in H2.
-    destruct H2 as [N H2].
-    destruct H1 as [N' H1].
-    assert (forall n, n>=N+N'->diam n Q m2).
-    { unfold diam. intros.
-      specialize H1 with (S n).
-      destruct H1 as [m' [H5 H6]];[omega|].      
-      destruct H3 as [f [H7 H8]].
-      destruct (i1 m' x) eqn:h.
-      - apply False_ind.
-        pose proof DC_Not_Eq m m'.
-        pose proof feM_mono (S n) 1 m m'.
-        assert (S n >= 1) by omega.
-        apply H3 in H9; [|exact H5].
-        assert (exists n:nat, direct_conflict (i1 m n) (i1 m' n)).
-        { exists x. rewrite h. rewrite H7. simpl. auto. }
-        apply H1 in H10.
-        apply H10; exact H9.
-      - pose proof fem_eq_func_eq n m m' x f r.
-        apply H1 in H5; try assumption.
-        assert (Func_Construct r m1 m2 n).
-        { apply H5, H8. }
-        pose proof Func_Property (Func_Construct r) m1 m2 n.
-        apply H9 in H3.
-        destruct H3 as [m1'[m2'[h1 [h2 h3]]]].
-        exists m2'.
-        split; [exact h2|].
-        specialize (H6 m1' m2').
-        apply H6; [|exists r;split;[reflexivity|apply h3]].
-        apply H2 with n;[omega|exact h1].
-    }
-    apply H0. exists (N+N'). apply H4.
-  Qed.
-
-
-  Theorem diam_mapsto_open: forall x P Q,
-      closed P -> open Q -> open (mapsto x P Q).
-  Proof.
-    unfold open, closed, mapsto, diam; intros.
-    exists 10.
-    intros.
-    destruct H5 as [f' [h h']].
-    pose proof fem_eq_func_eq (n-1) m m' x.
-    destruct (i1 m x) eqn:a.
-    - pose proof DC_Not_Eq m m'.
-      assert (exists x, direct_conflict (i1 m x)(i1 m' x)).
-      { exists x. rewrite h. rewrite a. simpl. auto. }
-      apply H6 in H7.
-      assert (feM 1 m m').
-      { pose proof feM_mono n 1 m m'. apply H8; [omega|exact H3]. }
-      apply H7 in H8; inversion H8.
-    - specialize (H5 f f').
-      replace (S (n-1)) with n in H5 by omega.
-      apply H5 in H3;[|reflexivity|exact h].
-      assert (f m1 m2 (n-1) ).
-      { apply H3. apply h'. }
-      apply Func_Property in H6.
-      destruct H6 as [m1' [m2' [H6 [H7 H8]]]].
-      specialize (H1 m1' m2').
-      specialize H with m1'.
-      specialize H0 with m2'.
-      apply H0 in H1.
-    
-  Theorem testing: forall P Q,
-(*      ((forall x H m, mapsto x H P m -> mapsto x H Q m)->(forall m, P m -> Q m))->
-*)((forall (f:RealFunc) (H:M->Prop), (forall m1 m2, H m1 -> (forall n, Func_Construct f m1 m2 n) -> P m2)->(forall m1 m2,H m1 -> (forall n, Func_Construct f m1 m2 n) -> Q m2))->(forall m, P m -> Q m))(*->      (forall m, P m -> Q m)*).
-  Proof.
-    intros.
-  Abort.
-(*
-Program Definition Simple_Func (m0:M) : RealFunc := 
-  fun P => fun m => fun n =>
-    (forall m' n', m' = m0 -> n > n' -> P m' n') \/ n = 0.
-Next Obligation.
-  unfold inner_NE. split;intros.
-  - destruct H.
-    + left. intros.
-      apply H;[exact H1|].
-      omega.
-    + right. omega.
-  - exact H0.
-Qed.
-Next Obligation.
-  Admitted.
-
- Theorem testing: forall P Q,
-(*      ((forall x H m, mapsto x H P m -> mapsto x H Q m)->(forall m, P m -> Q m))->
-*)((forall (f:RealFunc) (H:M->Prop), (forall m1 m2, H m1 -> (forall n, Func_Construct f m1 m2 n) -> P m2)->(forall m1 m2,H m1 -> (forall n, Func_Construct f m1 m2 n) -> Q m2))->(forall m, P m -> Q m))(*->      (forall m, P m -> Q m)*).
-  Proof.
-    intros.
-    pose proof X (Simple_Func m) (fun _ => True). clear X.
-    unfold Func_Construct in X1.
-    apply X1 with m; try auto.
-    - intros.
-      *)
-   *) 
-*)
 End FOO.
 
 
@@ -3105,7 +1992,7 @@ Inductive ceval: com -> Memory -> Memory -> Prop :=
       ceval c st st' ->
       ceval (WHILE b DO c END) st' st'' ->
       ceval (WHILE b DO c END) st st''
-  | E_FuncCall : forall (m1 m2: Memory) x (f:(*Real*)Func) k,
+  | E_FuncCall : forall (m1 m2: Memory) x (f: Func) k,
       aeval m1 x (Some (inr f)) ->
       (*(exists n, forall n2, exists (P:assertion), (P (i2 m2) n2) /\ 
         (f P (i2 m1) (n+n2)) /\ ~(f (assertion_minus P (i2 m2) n2) (i2 m1) (n+n2)))*)
@@ -3529,20 +2416,21 @@ Proof.
   - (* Precondition implies invariant *)
     intros st H. constructor.  Qed.
 
-Theorem hoare_funCall : forall (P Q:Assertion) x (f:RealFunc),
-  (forall m1 m2, P m1 -> (exists n, forall n2, exists (A:assertion), (A m2 n2) /\ 
-        (f A m1 (n+n2)) /\ ~(f (assertion_minus A m2 n2) m1 (n+n2))) -> Q m2) ->
-  {{fun m => P m /\ aeval (i1 m) x (inr f)}} CALL x {{Q}}.
+Theorem hoare_funCall : forall (P Q:Assertion) x (f:Func),
+  (forall m1 m2, P m1 -> (*(exists n, forall n2, exists (A:assertion), (A m2 n2) /\ 
+        (f A m1 (n+n2)) /\ ~(f (assertion_minus A m2 n2) m1 (n+n2))) -> Q m2)*)
+                 (exists k, forall n, f m1 m2 k n) ->
+                 Q m2) ->
+  {{fun m => P m /\ aeval (i1 m) x (Some (inr f))}} CALL x {{Q}}.
 Proof.
   intros P Q x f H m1 m2 Hc HP.
   inversion Hc. subst.
   destruct HP. rewrite i1_i2 in H3.
-  apply (aeval_determined m1 x (inr f) (inr f0)) in H3; [|exact H1].
+  apply (aeval_determined m1 x (Some (inr f)) (Some (inr f0))) in H3; [|exact H1].
   inversion H3. subst.
-  apply (H (i2 m1) (i2 m2)) in H0; [|exact H2].
-  exact H0.
+  apply (H (i2 m1) (i2 m2)) in H0; [exact H0|exists k;exact H2].
 Qed.
-
+(*
 Lemma FACT1_Hoare_Correct' :
   forall n, {{ fun st => i1 st 0 = inl n /\ i1 st 1 = inr FACT1 }}
        (CALL (ALoad 1)) {{fun st' => i1 st' 0 = inl (fact n)}}.
@@ -3568,7 +2456,7 @@ Proof.
     apply H1 in H2. apply (aeval_determined (i1 st) (ALoad 1) (inr FACT1) (i1 st 1)) in H2; [|exact H0].
     symmetry. auto.
 Qed.
-
+*)
 
 Inductive provable : Assertion -> com -> Assertion -> Prop :=
   | hoare_seq' : forall (P Q R: Assertion) (c1 c2: com),
@@ -3591,8 +2479,11 @@ Inductive provable : Assertion -> com -> Assertion -> Prop :=
       provable P' c Q' ->
       Q' ->> Q ->
       provable P c Q
-(*  | hoare_funcCall : forall P c Q x,
-      provable (fun m => aeval m x (inr c) /\ P m) (CALL x) Q*)
+  | hoare_funcCall : forall P Q x a n,
+      provable (fun m => aeval (i1 m) x (Some (inl n)) /\
+                         a = ALoad x /\
+                         mapsto n P Q m /\
+                         P m) (CALL a) Q
 .
 
 Definition valid (P:Assertion) (c:com) (Q:Assertion) : Prop := (forall (m1 m2:Memory), ceval c m1 m2 -> P (i2 m1) -> Q (i2 m2)).
@@ -3633,7 +2524,15 @@ Proof.
     apply (IHprovable m1 m2);[exact H2|].
     apply H.
     exact H3.
-
+  - destruct H0 as [? [? [? ?]]].
+    inversion H; subst.
+    destruct H2 as [f' [? ?]].
+    inversion H5. subst.
+    rewrite i1_i2 in *.
+    pose proof aeval_determined m1 x (Some (inl n)) (Some (inl y)) H0 H9.
+    inversion H4; subst.
+    rewrite H1 in H8. inversion H8; subst.
+    apply (H2 _ _ _ H3 H6).
 Qed.
 
 (* step index hoare logic
